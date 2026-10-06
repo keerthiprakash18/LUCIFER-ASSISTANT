@@ -105,7 +105,7 @@ export function App() {
     if (!auth?.authenticated) return;
     void refresh(); const timer = setInterval(refresh, 1800); return () => clearInterval(timer);
   }, [auth?.authenticated]);
-  useEffect(() => { if (data) document.documentElement.dataset.theme = data.settings.theme; }, [data?.settings.theme]);
+  useEffect(() => { if (data) { document.documentElement.dataset.theme = data.settings.theme; document.documentElement.dataset.accent = data.settings.accent || 'rose'; } }, [data?.settings.theme, data?.settings.accent]);
   useEffect(() => { if (data && speech.current) void speech.current.diagnostics(browserSpeechLanguage(data.settings.language)).then(setVoiceInfo); }, [data?.settings.language, section]);
   useEffect(() => {
     thread.current?.scrollTo({ top: thread.current.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
