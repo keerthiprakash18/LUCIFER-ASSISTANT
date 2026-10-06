@@ -22,6 +22,7 @@ jobs:
       - run: mkdir -p .local/tests
       - run: npm run browser:install
       - run: npm test
+      - run: npm run test:provider-ui
       - run: npm run build
 
   native-compile:
