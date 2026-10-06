@@ -59,10 +59,11 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
   const draft = drafts[provider];
   const [routing, setRouting] = useState<any>(null);
   const [models, setModels] = useState<any[]>([]);
+  const [pool,setPool]=useState<any>(data.nvidiaPool||null);
   const edited = useRef(new Set<Provider>());
   const localEndpoint = /^http:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::|\/|$)/i.test(draft.baseUrl);
 
-  useEffect(() => { void api('/integrations/model/routing').then(setRouting).catch(() => {}); }, []);
+  useEffect(() => { void api('/integrations/model/routing').then(setRouting).catch(() => {}); void api('/integrations/model/nvidia-pool').then(setPool).catch(()=>{}); }, []);
   useEffect(() => {
     const controller = new AbortController();
     void api('/integrations/model/profiles', 'GET', undefined, { signal: controller.signal }).then((profiles: any[]) => setDrafts(values => {
@@ -93,6 +94,13 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
     } finally {
       if (inFlight.current === controller) { inFlight.current = null; setPending(false); }
     }
+  };
+  const syncNvidia=async()=>{
+    if(inFlight.current)return;
+    const controller=new AbortController();inFlight.current=controller;setPending(true);setResult({text:'Syncing the NVIDIA model catalog…',kind:'note'});
+    try{const value=await api('/integrations/model/nvidia-pool/sync','POST',undefined,{signal:controller.signal,timeoutMs:25000});setPool(value);setResult({text:`NVIDIA pool synced: ${value.count} models catalogued.`,kind:'success'});}
+    catch(error){if(!controller.signal.aborted)setResult({text:(error as Error).message,kind:'error'});}
+    finally{if(inFlight.current===controller){inFlight.current=null;setPending(false);}}
   };
   const cancel = () => {
     inFlight.current?.abort(); inFlight.current = null; setPending(false);
@@ -153,8 +161,9 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
     {provider === 'custom' && <div className="notice">
       <label className="check"><input type="checkbox" required checked={!!draft.ownerManagedRoute} disabled={pending} onChange={e => update('ownerManagedRoute', e.target.checked)} />I configured this endpoint and accept its quota/billing policy</label>
       {localEndpoint && <label className="check"><input type="checkbox" checked={!!draft.windowsBridge} disabled={pending} onChange={e => update('windowsBridge', e.target.checked)} />Endpoint runs on Windows localhost; bridge it from the WSL backend</label>}
-      <div className="row-actions"><button type="button" disabled={pending || !draft.baseUrl} onClick={() => void discover()}>Discover models</button></div>
-      <small>Save + test verifies a harmless structured function call. LUCIFER only marks the custom provider connected when assistant tools are actually compatible.</small>
+      <div className="row-actions"><button type="button" disabled={pending || !draft.baseUrl} onClick={() => void discover()}>Discover models</button>{/integrate\.api\.nvidia\.com/i.test(draft.baseUrl)&&<button type="button" disabled={pending||ai?.status!=='connected'} onClick={()=>void syncNvidia()}>Sync NVIDIA model pool</button>}</div>
+      {/integrate\.api\.nvidia\.com/i.test(draft.baseUrl)&&pool?.count>0&&<div className="notice"><strong>NVIDIA Smart Pool · {pool.count} models</strong><p>Agent {pool.counts?.agent||0} · Reasoning {pool.counts?.reasoning||0} · Vision {pool.counts?.vision||0} · Translation {pool.counts?.translation||0} · Embedding {pool.counts?.embedding||0} · Specialist {pool.counts?.specialist||0}</p><small>{pool.healthy||0} recently healthy · {pool.cooldown||0} cooling down · primary {pool.primary||draft.model}</small></div>}
+      <small>Save + test verifies a harmless structured function call. NVIDIA pool sync catalogues all reported models; general assistant failover only uses agent/reasoning candidates. Specialist models stay reserved for matching tasks instead of being called blindly.</small>
     </div>}
 
     {models.length > 0 && <label>Observed model<select value={draft.model} onChange={e => update('model', e.target.value)}><option value="">Choose a model</option>{models.map(model => <option key={model.id} value={model.id}>{model.id}{model.tools ? ' · tools' : ''}</option>)}</select></label>}
