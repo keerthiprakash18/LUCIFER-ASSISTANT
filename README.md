@@ -86,6 +86,8 @@ An AI tool can read attached files, obtain the actual time, discover devices, cr
 
 The default for a new workspace is **Google Gemini Developer API** through the official `@google/genai` SDK. The setup form also supports the existing **OpenAI Responses** adapter and optional **local Ollama** through the official `ollama` client. The selected provider is stored as metadata; credentials remain server-side and encrypted. There is no automatic paid or cross-provider fallback.
 
+The setup UI also has a **Custom provider** profile for owner-managed OpenAI-compatible endpoints. Give it a display name, choose **Chat Completions** or **Responses**, enter the exact model/base URL, and optionally store an API key in the same encrypted vault. Remote endpoints must use HTTPS; HTTP is allowed only for localhost. A Windows-loopback bridge can be enabled for a local endpoint when the production backend is running in WSL. Custom routes require an explicit owner acknowledgement of the provider's quota/billing policy. `Save and test connection` performs a harmless structured function-call check, so a custom route is not marked Connected merely because it returned HTTP 200 or plain text.
+
 ```dotenv
 MODEL_PROVIDER=gemini
 OPENAI_API_KEY=YOUR_SERVER_SIDE_API_KEY
