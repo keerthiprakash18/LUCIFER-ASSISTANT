@@ -59,7 +59,7 @@ export function nvidiaAgentCandidates(store:Store,selected:ResolvedAIConfig,limi
       const ah=a.status==='healthy'?0:1,bh=b.status==='healthy'?0:1;if(ah!==bh)return ah-bh;
       return (a.failures||0)-(b.failures||0)||a.model.localeCompare(b.model);
     });
-  const ids=[selected.model,...records.map(record=>record.model)].filter((id,index,list)=>id&&list.indexOf(id)===index).slice(0,Math.max(1,limit));
+  const primary=store.get<NvidiaModelRecord>('nvidia_model',selected.model);const primaryCooling=!!primary?.cooldownUntil&&Date.parse(primary.cooldownUntil)>now;const ids=[...(primaryCooling?[]:[selected.model]),...records.map(record=>record.model)].filter((id,index,list)=>id&&list.indexOf(id)===index).slice(0,Math.max(1,limit));
   return ids.map(model=>({...selected,model}));
 }
 
