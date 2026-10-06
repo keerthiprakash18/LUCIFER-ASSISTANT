@@ -85,15 +85,24 @@ export function geminiRequestError(error: unknown, httpStatus?: number, signal?:
 
 export async function requestGemini(resolved: ResolvedAIConfig, parameters: Omit<GenerateContentParameters,'model'>, { signal: cancellation, transport = fetch, timeoutMs = 30000 }: { signal?: AbortSignal; transport?: typeof fetch; timeoutMs?: number } = {}) {
   const signal = cancellation ? AbortSignal.any([cancellation,AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs);
-  let httpStatus: number | undefined;
-  const client = new GoogleGenAI({ apiKey: resolved.apiKey, httpOptions: {
-    baseUrl: resolved.baseUrl, timeout: timeoutMs, retryOptions: { attempts: 1 },
-    fetch: async (url,init) => { const response = await transport(url,{...init,signal});httpStatus=response.status;return response; },
-  } });
-  try {
-    signal.throwIfAborted();
-    const response = await client.models.generateContent({ ...parameters, model: resolved.model, config: { ...parameters.config, abortSignal: signal } });
-    signal.throwIfAborted();
-    return { response, diagnostics: geminiMetadata(response,httpStatus) };
-  } catch(error) { throw geminiRequestError(error,httpStatus,signal); }
+  const wait = (ms:number) => new Promise<void>((resolve,reject)=>{signal.throwIfAborted();const cancel=()=>{clearTimeout(timer);reject(signal.reason);};const timer=setTimeout(()=>{signal.removeEventListener('abort',cancel);resolve();},ms);signal.addEventListener('abort',cancel,{once:true});});
+  let lastError:GeminiError|undefined;
+  for(let attempt=0;attempt<3;attempt++){
+    let httpStatus: number | undefined;
+    const client = new GoogleGenAI({ apiKey: resolved.apiKey, httpOptions: {
+      baseUrl: resolved.baseUrl, timeout: timeoutMs, retryOptions: { attempts: 1 },
+      fetch: async (url,init) => { const response = await transport(url,{...init,signal});httpStatus=response.status;return response; },
+    } });
+    try {
+      signal.throwIfAborted();
+      const response = await client.models.generateContent({ ...parameters, model: resolved.model, config: { ...parameters.config, abortSignal: signal } });
+      signal.throwIfAborted();
+      return { response, diagnostics: geminiMetadata(response,httpStatus) };
+    } catch(error) {
+      const classified=geminiRequestError(error,httpStatus,signal);lastError=classified;
+      if(classified.code!=='unavailable'||attempt===2)throw classified;
+      await wait(400*(2**attempt));
+    }
+  }
+  throw lastError || new GeminiError('unavailable','Gemini service request failed after bounded retries.');
 }
