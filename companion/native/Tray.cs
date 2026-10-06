@@ -118,6 +118,7 @@ namespace LuciferNative {
       }
       if(kind=="disconnected"){connected=false;error=Convert.ToString(message["error"]);return;}
       if(kind=="control"){string action=Convert.ToString(message["action"]);Control(action);return;}
+      if(kind=="progress"&&phase=="Working"&&Convert.ToInt32(message["id"])==activeId){string progressState=message.ContainsKey("state")?Convert.ToString(message["state"]):"";confirmationPending=progressState=="awaiting_authorization"||progressState=="awaiting_input";voiceEvent=message.ContainsKey("detail")?Convert.ToString(message["detail"]):"Backend task is running";if(message.ContainsKey("taskId"))lastTaskId=Convert.ToString(message["taskId"]);return;}
       if(kind=="reply"&&phase=="Working"&&Convert.ToInt32(message["id"])==activeId){if(message.ContainsKey("taskId"))lastTaskId=Convert.ToString(message["taskId"]);string taskState=message.ContainsKey("state")?Convert.ToString(message["state"]):"";confirmationPending=taskState=="awaiting_authorization"||taskState=="awaiting_input";string result=message.ContainsKey("error")?Convert.ToString(message["error"]):Convert.ToString(message["reply"]);overlay.SetResult(String.IsNullOrWhiteSpace(result)?"No confirmed response was returned.":result);Speak(String.IsNullOrWhiteSpace(result)?"No confirmed response was returned.":result);}
     }
     void Speak(string text){
