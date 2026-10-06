@@ -59,14 +59,16 @@ try {
   for (const section of ['Settings', 'Skills & integrations']) {
     await open(section);
     // The regression fails against the original live module: Settings had no configure control.
-    for (const provider of ['gemini', 'openai', 'ollama']) {
+    for (const provider of ['gemini', 'openai', 'ollama', 'custom']) {
       await form.getByLabel('Provider', { exact: true }).selectOption(provider);
       await form.getByLabel('Model', { exact: true }).fill(`unsaved-${provider}`);
+      if(provider==='custom'){await form.getByLabel('Provider name',{exact:true}).fill('Unsaved custom');await form.getByLabel('Base URL',{exact:true}).fill('https://custom.example/v1');await form.getByLabel('API protocol',{exact:true}).selectOption('responses');}
     }
-    for (const provider of ['gemini', 'openai', 'ollama']) {
+    for (const provider of ['gemini', 'openai', 'ollama', 'custom']) {
       await form.getByLabel('Provider', { exact: true }).selectOption(provider);
       assert.equal(await form.getByLabel('Model', { exact: true }).inputValue(), `unsaved-${provider}`);
       assert.equal(await form.getByLabel('API key', { exact: false }).count(), provider === 'ollama' ? 0 : 1);
+      if(provider==='custom'){assert.equal(await form.getByLabel('Provider name',{exact:true}).inputValue(),'Unsaved custom');assert.equal(await form.getByLabel('API protocol',{exact:true}).inputValue(),'responses');assert.equal(await form.getByText(/structured function call/i).count(),1);}
     }
     assert.equal(configRequests, 0); assert.equal(testRequests, 0);
     await page.reload(); await form.waitFor(); // Restore navigation/open state, never a key from browser storage.
@@ -187,7 +189,7 @@ try {
   for (const [kind, record] of saved) assert.deepEqual(service.store.get(kind,record.id), record);
   assert.deepEqual(exceptions, []); assert.deepEqual(sdkRequests, []);
   assert.deepEqual(consoleErrors.filter(error => !/Failed to load resource/.test(error)), []);
-  writeFileSync('.local/verification/provider-ui-results.json', JSON.stringify({ passed: true, entryPaths: ['Settings','Skills & integrations'], choices: ['gemini','openai','ollama'], credentials: 'none', pageExceptions: exceptions, consoleErrors, httpErrors, failedRequests, sdkRequests, recovery: ['slow backend','cancel','duplicate submit','HTTP 503','HTML response','invalid status','invalid workspace','error boundary retry/back','refresh'], boundaryExceptions,boundaryConsole,viewports: [1440,390], themes: ['light','dark'], savedRecordsPreserved: true, speech:'synthetic network-error event, no automatic retry, text usable',liveAI: 'not tested' }, null, 2));
+  writeFileSync('.local/verification/provider-ui-results.json', JSON.stringify({ passed: true, entryPaths: ['Settings','Skills & integrations'], choices: ['gemini','custom','freellmapi','openai','ollama'], credentials: 'none', pageExceptions: exceptions, consoleErrors, httpErrors, failedRequests, sdkRequests, recovery: ['slow backend','cancel','duplicate submit','HTTP 503','HTML response','invalid status','invalid workspace','error boundary retry/back','refresh'], boundaryExceptions,boundaryConsole,viewports: [1440,390], themes: ['light','dark'], savedRecordsPreserved: true, speech:'synthetic network-error event, no automatic retry, text usable',liveAI: 'not tested' }, null, 2));
   console.log('Provider UI regression passed: both entries, drafts, errors/cancel, refresh, sections, themes, narrow layout. No live AI requests.');
 } catch(error) {
   await page.screenshot({ path: '.local/verification/provider-ui-failure.png', fullPage: true }).catch(()=>{});
