@@ -120,12 +120,15 @@ function MemoryPanel({ data, act }: PanelProps) {
 
 function IntegrationsPanel({ data, act }: PanelProps) {
   const [verification, setVerification] = useState<any>(null);
+  const [integrationError,setIntegrationError]=useState('');
+  const telegram=async(action:'challenge'|'verify')=>{setIntegrationError('');try{if(action==='challenge')setVerification(await api('/telegram/challenge','POST'));else{await api('/telegram/verify','POST');setVerification(null);await act(async()=>{});}}catch(error){setIntegrationError((error as Error).message);}};
   return <section className="page-content"><div className="grid">{data.integrations.map(i => <div className="form-panel" key={i.id}>
     {i.id !== 'model' && <><h3>{i.name} <span className="pill">{i.status.replaceAll('_', ' ')}</span></h3><p>{i.detail}</p></>}
      {i.id === 'model' && <AIProviderPanel data={data} act={act} />}
     {i.id === 'telegram' && <>
-      <button onClick={() => void act(async () => setVerification(await api('/telegram/challenge', 'POST')))}>Verify Telegram destination</button>
-      {verification?.telegramCode && <div className="notice">Open <a href={verification.url} target="_blank" rel="noreferrer">@{verification.bot}</a>, or send <code>/start {verification.telegramCode}</code>in a private chat, then click:<button onClick={() => void act(async () => { await api('/telegram/verify', 'POST'); setVerification(null); })}>Check verification</button></div>}
+      <button onClick={() => void telegram('challenge')}>Verify Telegram destination</button>
+      {integrationError&&<p className="hint" role="status">{integrationError} Telegram is optional; local voice and NVIDIA remain available.</p>}
+      {verification?.telegramCode && <div className="notice">Open <a href={verification.url} target="_blank" rel="noreferrer">@{verification.bot}</a>, or send <code>/start {verification.telegramCode}</code> in a private chat, then click:<button onClick={() => void telegram('verify')}>Check verification</button></div>}
       {data.telegram?.name && <p>Verified destination: {data.telegram.name}</p>}
     </>}
     {i.id !== 'model' && <button disabled={i.id === 'instagram'} onClick={() => void act(() => api('/integrations/' + i.id + '/disconnect', 'POST'))}>Disconnect {i.name}</button>}
