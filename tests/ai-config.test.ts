@@ -51,3 +51,32 @@ test('configuration route does not test implicitly and test route returns the fi
    assert.equal(tested.json().status.status,'connected');assert.equal(calls,1);
  } finally {await service.app.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+
+test('custom provider is owner-named, encrypted, protocol-selectable and requires structured tool compatibility',async()=>{
+ const dir=mkdtempSync(path.resolve('.local/tests/ai-custom-'));const store=new Store(dir);let calls=0;
+ const transport:typeof fetch=async(_url,init)=>{
+   calls++;const body=JSON.parse(String(init?.body));
+   assert.equal((init?.headers as Record<string,string>).Authorization,'Bearer custom-secret-key');
+   assert.equal(body.model,'custom-tools-model');
+   return Response.json({model:'custom-tools-model',choices:[{finish_reason:'tool_calls',message:{role:'assistant',content:null,tool_calls:[{id:'tool-1',type:'function',function:{name:'lucifer_connection_check',arguments:'{"value":"ok"}'}}]}}]});
+ };
+ const service=new AIConfigService(store,dir,transport);
+ try{
+   await service.save({provider:'custom',protocol:'chat_completions',customName:'My Compatible Gateway',model:'custom-tools-model',baseUrl:'https://custom.example/v1',apiKey:'custom-secret-key',ownerManagedRoute:true});
+   const saved=JSON.stringify(store.list('ai_config'));assert.equal(saved.includes('custom-secret-key'),false);assert.match(saved,/My Compatible Gateway/);
+   assert.equal((await service.status()).status,'configured_unverified');
+   const result=await service.test();assert.equal(result.verified,true);assert.equal(calls,1);
+   const status=await service.status();assert.equal(status.status,'connected');assert.equal(status.customName,'My Compatible Gateway');assert.equal(status.protocol,'chat_completions');
+   const ciphertext=await readFile(path.join(dir,'ai-credentials.enc'),'utf8');assert.equal(ciphertext.includes('custom-secret-key'),false);
+ }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('custom provider accepts keyless local endpoints only after explicit owner route approval',async()=>{
+ const dir=mkdtempSync(path.resolve('.local/tests/ai-custom-local-'));const store=new Store(dir);const service=new AIConfigService(store,dir);
+ try{
+   await assert.rejects(service.save({provider:'custom',protocol:'chat_completions',customName:'Local gateway',model:'local-model',baseUrl:'http://127.0.0.1:1234/v1',apiKey:'',ownerManagedRoute:false}),/accept its quota|owner|configured/i);
+   await service.save({provider:'custom',protocol:'responses',customName:'Local responses',model:'local-model',baseUrl:'http://127.0.0.1:1234/v1',apiKey:'',ownerManagedRoute:true});
+   const resolved=await service.resolve();assert.equal(resolved?.provider,'custom');assert.equal(resolved?.apiKey,undefined);assert.equal(resolved?.protocol,'responses');assert.equal(resolved?.ownerManagedRoute,true);
+ }finally{store.close();rmSync(dir,{recursive:true,force:true});}
+});
