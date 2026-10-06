@@ -22,10 +22,12 @@ For a source-only tray rebuild/relaunch that retains the already-running product
 
 ## Daily use
 
-1. At the owner's Windows sign-in, `LUCIFER.exe --supervise` starts the tray and its hidden local workers. Wait for **Listening**.
-2. Say **“Lucifer”**, then your instruction. The local multilingual utterance detector checks for the marker and gives a cue only after acceptance. Ambient non-wake utterances remain local. The capture stops after approximately 1.1 seconds of silence, with a 20-second maximum.
-3. Replies use local speech output. A six-second follow-up window opens after a reply; subsequent turns retain the existing conversation context. When that window closes, say “Lucifer” again.
-4. Right-click the tray to open the dashboard, pause/resume the actual microphone, stop, change voice settings, grant a folder, change sign-in startup, or exit.
+1. At the owner's Windows sign-in, `LUCIFER.exe --supervise` starts the tray and its hidden local workers. The floating panel stays out of the way until summoned.
+2. Say **“Hey Lucifer”** or **“Lucifer”**. After the local multilingual detector accepts the wake phrase, the real desktop panel appears without deliberately taking keyboard focus and a cached/local **“Yes boss”** acknowledgement plays. Ambient non-wake utterances remain local.
+3. You may speak **“Hey Lucifer, open Notepad”** as one utterance. Text after the accepted local wake marker is preserved while the acknowledgement plays, then enters the same validated assistant/tool pipeline; it is not discarded or replaced by a synthetic success path. If the wake phrase has no command after it, command capture begins after the acknowledgement.
+4. The panel shows the actual runtime state (Idle, Listening, Understanding, Working, Speaking, Confirmation required, Offline, or Error), local input waveform, recognized command, observed task state/result, text input, Talk, and Stop. It collapses to a small launcher after an idle period and remembers its position.
+5. Replies use local speech output. A six-second follow-up window opens after a reply; subsequent turns retain the existing conversation context. When that window closes, say “Lucifer” again.
+6. **Ctrl+Alt+Space** is the global summon/Talk shortcut when Windows accepts that registration. The panel reports if that shortcut is unavailable; tray/Talk remains the fallback. Right-click the tray to open the dashboard, pause/resume the actual microphone, stop, change voice settings, grant a folder, change sign-in startup, or exit.
 
 **Ctrl+Alt+Esc** stops speech and requests cancellation of the current action. The runtime first tries **Ctrl+Alt+L** for pause/resume and uses **Ctrl+Alt+Shift+L** if it is unavailable. The tray displays the selected shortcut, which can differ after a restart as other Windows registrations change. The Shift fallback was exercised successfully during verification; both registration results are recorded in local status.
 
@@ -125,8 +127,10 @@ The visibility repair found the old supervisor/tray alive in the owner's session
 ## Minimal physical acceptance
 
 1. In the tray calibration window, confirm Lucifer is detected and your own English/Tamil sentence matches the local transcript.
-2. With the dashboard and terminals closed, say **“Lucifer, open Notepad.”** Verify the window and spoken result.
-3. Say **“Lucifer, தமிழில் பேசு.”** Verify Tamil output. Give a short follow-up within six seconds and check that it follows the conversation. Press **Ctrl+Alt+Esc** during speech to stop.
-4. Sign out/in or reboot. Confirm the tray returns to Listening and repeat the Notepad command. Then check a normal sleep/resume if used.
+2. Close the dashboard and terminals. Say **“Hey Lucifer.”** Confirm the floating robot panel appears and audibly says **“Yes boss”** without taking over the desktop.
+3. Say **“Open Notepad.”** Confirm Notepad actually opens and LUCIFER reports the observed result. Then separately test the single utterance **“Hey Lucifer, open Notepad.”**
+4. Press **Ctrl+Alt+Space** and verify it summons the same panel/Talk path when the panel reports that shortcut as registered. Use the Talk and Stop buttons as diagnostic/accessibility alternatives, not as replacements for wake activation.
+5. Say **“Lucifer, தமிழில் பேசு.”** Verify Tamil output. Give a short follow-up within six seconds and check that it follows the conversation. Press **Ctrl+Alt+Esc** during speech to stop.
+6. Sign out/in or reboot. Without opening a browser, terminal, or VS Code, repeat the wake → “Yes boss” → Notepad flow. Then check a normal sleep/resume if used.
 
 Startup registration, runtime recovery and local synthetic speech passed; your actual wake/Tamil/Tanglish accuracy, audible Tamil quality, reboot and sleep/resume have **not** been physically verified. The Windows runtime works after sign-in while awake. The existing Android browser remains a foreground chat/voice/dashboard client; background Android wake requires a separate native companion and is not implemented here.
