@@ -31,7 +31,7 @@ for line in sys.stdin:
         filename = candidate
         language = job.get("language", "auto")
         segments, info = model.transcribe(filename, language=None if language == "auto" else language,
-            beam_size=3, vad_filter=True, condition_on_previous_text=False,
+            beam_size=1, vad_filter=True, vad_parameters={"min_silence_duration_ms": 200}, condition_on_previous_text=False,
             initial_prompt="Lucifer. English and Tamil commands. Notepad, VS Code, Chrome, notes, reminders.")
         segments = list(segments)
         text = " ".join(segment.text.strip() for segment in segments).strip()
