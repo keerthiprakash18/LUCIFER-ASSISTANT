@@ -2,7 +2,7 @@
 
 A working, single-owner personal assistant workspace with a native Windows voice tray and an optional Windows/Android browser dashboard. It combines persistent chat, configurable AI, local Windows wake/transcription/speech, approved laptop actions, controlled memory, imported analytics, general CSV/PDF reports, Telegram delivery, and persistent reminders.
 
-**Current installation:** Windows sign-in startup is enabled and the native tray is running. The production dashboard is **http://localhost:3001**. Real native Notepad, scoped note read/write/search, browser observation, CSV/PDF report creation, reminder cancellation, microphone pause/resume, speech stop, duplicate prevention and crash/backend recovery passed. Gemini's saved connection is verified, while the latest live request is currently reporting HTTP 503; local actions remain available. Physical wake/Tamil/reboot checks remain outstanding; see [Windows voice setup and acceptance](docs/WINDOWS-VOICE.md) and [STATUS.md](STATUS.md).
+**Current installation:** Windows sign-in startup is enabled and the native tray is running. The production dashboard is **http://localhost:3001**. Real native Notepad, scoped note read/write/search, browser observation, CSV/PDF report creation, reminder cancellation, microphone pause/resume, speech stop, duplicate prevention and crash/backend recovery passed. NVIDIA Build is the primary cloud model route; local actions remain available independently. Physical wake/Tamil/reboot checks remain outstanding; see [Windows voice setup and acceptance](docs/WINDOWS-VOICE.md) and [STATUS.md](STATUS.md).
 
 The native source now includes a movable dark floating LUCIFER panel, local **“Yes boss”** acknowledgement, single-utterance wake+command preservation, observed task-state progress, Talk/Stop/text controls, idle launcher collapse, and a registered **Ctrl+Alt+Space** summon shortcut with a truthful fallback if Windows refuses registration. This source capability is not the same as an installed/physically verified laptop result: rebuild/reinstall the native tray, then perform the physical acceptance in the Windows voice guide.
 
@@ -20,7 +20,7 @@ The recognizable tray icon is LUCIFER's pink emblem with a status dot. For manua
 
 Routine reversible operations use owner-approved scopes and return observed results. Overwrites, moves, sending, publishing, purchases, installations, security changes, and access expansion require an exact confirmation. Stop cancels future steps; an already-started operating-system action cannot be undone.
 
-The AI setup supports the existing Gemini configuration, local Ollama, and an explicitly enabled free OpenAI-compatible gateway route through a secure Windows-loopback bridge for WSL. Paid production routes remain disabled. Optional fallback is off until enabled by the owner and configured separately. The current gateway endpoint responds with HTTP 401 until a LUCIFER-authorized gateway key and free model route are entered privately; no credentials are copied from other applications.
+The AI setup uses NVIDIA Build / an owner-managed OpenAI-compatible endpoint as the primary cloud route, local Ollama as the preferred final fallback, and can also use an explicitly enabled free OpenAI-compatible gateway route through a secure Windows-loopback bridge for WSL. Paid production routes remain disabled. Optional fallback is off until enabled by the owner and configured separately. The current gateway endpoint responds with HTTP 401 until a LUCIFER-authorized gateway key and free model route are entered privately; no credentials are copied from other applications.
 
 ## Start on Windows
 
@@ -66,7 +66,7 @@ npm run dev
 
 **React 19 + Vite 8 + TypeScript** provides the responsive interface. **Fastify 5** runs one modular backend. SQLite persists conversations, durable memory, settings, tasks, device commands, schedules, notification occurrences, and delivery receipts. Node 24's `node:sqlite` API is still labelled experimental by that runtime; it is isolated behind the `Storage` interface. Chromium prints PDFs; PDF.js extracts text and rasterizes the actual PDF pages with an embedded Tamil font.
 
-The Windows companion polls the backend over authenticated outbound HTTPS (loopback HTTP on this laptop) and has no inbound HTTP listener. The native tray adds local speech and current-user named-pipe controls; it manages the production backend in WSL. Model calls use one explicitly selected provider: the official OpenAI Responses endpoint, the official Google `@google/genai` SDK, or the official Ollama JavaScript client for a local server. Paid and cross-provider fallback are disabled.
+The Windows companion polls the backend over authenticated outbound HTTPS (loopback HTTP on this laptop) and has no inbound HTTP listener. The native tray adds local speech and current-user named-pipe controls; it manages the production backend in WSL. Model calls use one explicitly selected owner-approved route: NVIDIA Build / another OpenAI-compatible endpoint, the legacy OpenAI Responses adapter, or the official Ollama JavaScript client for a local server. Paid and cross-provider fallback are disabled.
 
 ```
 src/          Responsive workspace, browser speech, API client
@@ -84,29 +84,27 @@ An AI tool can read attached files, obtain the actual time, discover devices, cr
 
 ## Model onboarding and voice setup
 
-The default for a new workspace is **Google Gemini Developer API** through the official `@google/genai` SDK. The setup form also supports the existing **OpenAI Responses** adapter and optional **local Ollama** through the official `ollama` client. The selected provider is stored as metadata; credentials remain server-side and encrypted. There is no automatic paid or cross-provider fallback.
+The default for a new workspace is **NVIDIA Build / an owner-managed OpenAI-compatible Chat Completions endpoint**. The recommended NVIDIA model is `nvidia/nemotron-3.5-lightning-30b-a3b`. The setup form also supports the existing **OpenAI Responses** adapter and optional **local Ollama** through the official `ollama` client. The selected provider is stored as metadata; credentials remain server-side and encrypted. Fallback is explicit and bounded.
 
 The setup UI also has a **Custom provider** profile for owner-managed OpenAI-compatible endpoints. Give it a display name, choose **Chat Completions** or **Responses**, enter the exact model/base URL, and optionally store an API key in the same encrypted vault. Remote endpoints must use HTTPS; HTTP is allowed only for localhost. A Windows-loopback bridge can be enabled for a local endpoint when the production backend is running in WSL. Custom routes require an explicit owner acknowledgement of the provider's quota/billing policy. `Save and test connection` performs a harmless structured function-call check, so a custom route is not marked Connected merely because it returned HTTP 200 or plain text.
 
 ```dotenv
-MODEL_PROVIDER=gemini
+MODEL_PROVIDER=custom
 OPENAI_API_KEY=YOUR_SERVER_SIDE_API_KEY
 OPENAI_MODEL=YOUR_ACTUAL_RESPONSES_COMPATIBLE_MODEL
 OPENAI_BASE_URL=https://api.openai.com/v1
-GEMINI_API_KEY=YOUR_GEMINI_DEVELOPER_API_KEY
-GEMINI_MODEL=gemini-3.8-flash
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen2.5:1.5b
 ENABLE_WEB_SEARCH=false
 ```
 
-You can configure these values owner-only from **Settings → AI provider → Configure AI provider**. The AI card in **Skills & integrations** opens the same flow. Choose Gemini, OpenAI, or Ollama; the protocol is selected automatically. Gemini’s form uses `gemini-flash-latest`, the current model example in the installed official SDK README. Google AI Studio free-tier quotas are model/project/region/account dependent, so check the current [pricing](https://ai.google.dev/gemini-api/docs/pricing) and [rate-limit](https://ai.google.dev/gemini-api/docs/rate-limits) pages before relying on free usage; this project does not enable billing. Create a Gemini key through [Google AI Studio](https://aistudio.google.com/apikey). The official SDK and API behavior are documented in Google’s [Gemini quickstart](https://ai.google.dev/gemini-api/docs/quickstart), [models](https://ai.google.dev/gemini-api/docs/models), and [function-calling](https://ai.google.dev/gemini-api/docs/function-calling) pages.
+You can configure these values owner-only from **Settings → AI provider → Configure AI provider**. The AI card in **Skills & integrations** opens the same flow. The primary cloud setup is **NVIDIA Build / Custom provider** using OpenAI-compatible Chat Completions with base URL `https://integrate.api.nvidia.com/v1`. API keys stay in LUCIFER's encrypted server-side vault. Use **Discover models** where supported, then **Save and test connection** to verify a harmless structured tool call before marking the route Connected.
 
 OpenAI uses `POST {base URL}/responses`; a Chat Completions-only endpoint is rejected. Ollama uses its local API at `http://127.0.0.1:11434` and requires the selected model to already be installed. For a lightweight action-capable local fallback, start with `qwen2.5:1.5b` (about 986 MB in Ollama). LUCIFER now requires a harmless structured tool call during the Ollama connection test, because a text-only local model is not sufficient for assistant actions. On this Windows-first setup the provider UI can bridge the WSL production backend to Windows Ollama on `127.0.0.1:11434`. `scripts/setup-ollama-fallback.ps1` can install Ollama only when explicitly invoked with `-InstallIfMissing`, pull the selected model, and verify local tool calling. The native voice installer remains separate from model installation.
 
 The key is sent only to the authenticated LUCIFER server, encrypted in `.local/ai-credentials.enc`, and never returned to the browser. The encrypted vault key is `.local/ai-credentials.key`; both are ignored by Git and should remain owner-readable. A blank key keeps the selected provider’s existing server-side key or environment key. **Save configuration** saves without connecting. **Save and test connection** explicitly performs a minimal request for the selected provider, with visible progress, cancellation, and a 30-second server timeout. `configured · unverified` is not treated as connected. Statuses distinguish awaiting configuration, configured/unverified, connected, failed, disconnected, and unsupported. Unsaved model/endpoint/key fields stay in component memory across provider switches and recoverable errors; credentials are never persisted to browser storage. Refresh retains the selected page/open form, not an unsaved credential.
 
-There is no FlagshipRouter adapter in this project. Your OmniRush login, subscription, or credentials in another project do not provide runtime API access here. Do not enter those credentials into LUCIFER. Web search is only exposed to the OpenAI Responses adapter when `ENABLE_WEB_SEARCH=true`; Gemini and Ollama receive the same owner/tool boundary without an invented web-search capability.
+There is no FlagshipRouter adapter in this project. Your OmniRush login, subscription, or credentials in another project do not provide runtime API access here. Do not enter those credentials into LUCIFER. Web search is only exposed to the OpenAI Responses adapter when `ENABLE_WEB_SEARCH=true`; NVIDIA/custom and Ollama routes remain inside the same owner/tool boundary without an invented web-search capability.
 
 ### Gemini connection diagnostics
 
