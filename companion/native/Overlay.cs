@@ -187,10 +187,12 @@ namespace LuciferNative {
     }
 
     sealed class RobotAvatar : Control {
-      readonly Timer timer=new Timer();string state="Idle";int frame;public event EventHandler LauncherClicked;
+      readonly Timer timer=new Timer();readonly bool motionAllowed=ClientAnimationEnabled();string state="Idle";int frame;public event EventHandler LauncherClicked;
+      [System.Runtime.InteropServices.DllImport("user32.dll")]static extern bool SystemParametersInfo(uint action,uint parameter,ref bool value,uint flags);
+      static bool ClientAnimationEnabled(){bool enabled=true;try{SystemParametersInfo(0x1042,0,ref enabled,0);}catch{}return enabled;}
       public RobotAvatar(){
         SetStyle(ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint,true);
-        Cursor=Cursors.Hand;timer.Interval=180;timer.Tick+=delegate{if(SystemInformation.MenuAnimation){frame=(frame+1)%8;Invalidate();}};timer.Start();
+        Cursor=Cursors.Hand;timer.Interval=180;timer.Tick+=delegate{if(motionAllowed){frame=(frame+1)%8;Invalidate();}};timer.Start();
         Click+=delegate{if(LauncherClicked!=null)LauncherClicked(this,EventArgs.Empty);};
       }
       public void SetState(string value){state=value??"Idle";Invalidate();}
