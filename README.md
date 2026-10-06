@@ -106,11 +106,9 @@ The key is sent only to the authenticated LUCIFER server, encrypted in `.local/a
 
 There is no FlagshipRouter adapter in this project. Your OmniRush login, subscription, or credentials in another project do not provide runtime API access here. Do not enter those credentials into LUCIFER. Web search is only exposed to the OpenAI Responses adapter when `ENABLE_WEB_SEARCH=true`; NVIDIA/custom and Ollama routes remain inside the same owner/tool boundary without an invented web-search capability.
 
-### Gemini connection diagnostics
+### Provider verification
 
-The Gemini connection probe is a text-only request with a bounded **2048-token** output budget and a 30-second timeout. Thinking can consume output tokens: the previous 30-token probe returned HTTP 200 with `MAX_TOKENS` and no visible text for the currently resolved `gemini-3.8-flash` model. This is now classified as output exhaustion, not a bad key/model. Movable aliases use model-default thinking settings rather than hard-coded model-specific controls. SDK automatic retries are disabled, including on quota errors; no billing or provider fallback is enabled.
-
-The integration card shows distinct errors plus optional sanitized connection diagnostics: HTTP status, resolved model version, finish reason, prompt block reason, response part types, and token counts. Request content, generated text, headers, credentials, and thought signatures are excluded. Connected requires actual nonempty visible model text. Normal chat function-call-only responses enter the existing permission/schema-validated tool loop; opaque Gemini thought signatures are retained only in memory for tool continuation.
+NVIDIA/custom routes are marked Connected only after a harmless structured tool-call probe succeeds. Runtime failures are stored separately from the saved connection test, and stale failures from a previous provider selection are not shown after the owner switches routes. Ollama uses the same structured-tool requirement before it can be used as a fallback.
 
 Normal mode: type, attach documents, press the microphone, inspect the final transcript, and send. Realtime mode: a foreground **turn-based** browser voice session; press the microphone for each turn, final transcripts send automatically, and replies use speech synthesis. Pressing the microphone interrupts current speech. **Mute** pauses the session; **Stop** aborts listening and speaking. Cancel an executing task separately in Tasks, or use Emergency stop.
 
