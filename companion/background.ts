@@ -57,7 +57,7 @@ while(!stopped){
     }
     for(const [commandId,result] of Object.entries(receipts))if(!actions.has(commandId)){try{await request('result',{commandId,...result});delete receipts[commandId];await saveReceipts();}catch{}}
     const heartbeat=await request('voice/heartbeat',status);emit({kind:'ready',deviceId:credentials.deviceId,emergency:heartbeat.emergency});if(heartbeat.control)emit({kind:'control',action:heartbeat.control});
-  }catch(error){emit({kind:'disconnected',error:redact((error as Error).message)});for(const c of actions.values())c.abort();}
+  }catch(error){const message=(error as Error).message==='fetch failed'?'Production backend unavailable at localhost:3001; retrying.':redact((error as Error).message);emit({kind:'disconnected',error:message});for(const c of actions.values())c.abort();}
   await new Promise(r=>setTimeout(r,1500));
 }
 await saveReceipts();
