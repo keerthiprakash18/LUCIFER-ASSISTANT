@@ -122,7 +122,7 @@ namespace LuciferNative {
       if(currentState!="Idle")MarkActive();
     }
 
-    public void SetSummonShortcut(bool available){shortcutLabel.Text=available?"Ctrl+Alt+Space summons · Ctrl+Alt+Esc stops":"Summon shortcut unavailable · use tray/Talk · Ctrl+Alt+Esc stops";}
+    public void SetSummonShortcut(bool available,bool shiftFallback){shortcutLabel.Text=available?(shiftFallback?"Ctrl+Alt+Shift+Space summons · Ctrl+Alt+Esc stops":"Ctrl+Alt+Space summons · Ctrl+Alt+Esc stops"):"Summon shortcut unavailable · use tray/Talk · Ctrl+Alt+Esc stops";}
     public void SetResult(string text){if(!String.IsNullOrWhiteSpace(text))resultLabel.Text=text;MarkActive();}
     public void SetTranscript(string text){if(!String.IsNullOrWhiteSpace(text))transcriptLabel.Text=text;MarkActive();}
 
