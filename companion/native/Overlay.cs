@@ -26,6 +26,7 @@ namespace LuciferNative {
     readonly Button talkButton=new Button();
     readonly Button stopButton=new Button();
     readonly Button collapseButton=new Button();
+    readonly Label shortcutLabel=new Label();
     readonly RobotAvatar avatar=new RobotAvatar();
     readonly Waveform waveform=new Waveform();
     readonly Timer idleTimer=new Timer();
@@ -58,7 +59,7 @@ namespace LuciferNative {
       stateLabel.MouseDown+=DragStart;stateLabel.MouseMove+=DragMove;stateLabel.MouseUp+=DragEnd;header.Controls.Add(stateLabel);
       detailLabel.Text="Say Hey Lucifer";detailLabel.Font=new Font("Segoe UI",9);detailLabel.AutoEllipsis=true;detailLabel.Location=new Point(110,76);detailLabel.Size=new Size(250,24);detailLabel.ForeColor=Color.FromArgb(196,184,194);
       detailLabel.MouseDown+=DragStart;detailLabel.MouseMove+=DragMove;detailLabel.MouseUp+=DragEnd;header.Controls.Add(detailLabel);
-      collapseButton.Text="—";collapseButton.FlatStyle=FlatStyle.Flat;collapseButton.FlatAppearance.BorderSize=0;collapseButton.ForeColor=Color.FromArgb(206,190,201);collapseButton.BackColor=Color.Transparent;collapseButton.Size=new Size(38,34);collapseButton.Location=new Point(382,8);collapseButton.TabStop=true;collapseButton.AccessibleName="Collapse LUCIFER panel";collapseButton.Click+=delegate{Collapse();};header.Controls.Add(collapseButton);
+      collapseButton.Text="—";collapseButton.FlatStyle=FlatStyle.Flat;collapseButton.FlatAppearance.BorderSize=0;collapseButton.ForeColor=Color.FromArgb(206,190,201);collapseButton.BackColor=Color.FromArgb(28,22,31);collapseButton.Size=new Size(38,34);collapseButton.Location=new Point(382,8);collapseButton.TabStop=true;collapseButton.AccessibleName="Collapse LUCIFER panel";collapseButton.Click+=delegate{Collapse();};header.Controls.Add(collapseButton);
 
       contentPanel.Dock=DockStyle.Fill;contentPanel.Padding=new Padding(18,12,18,16);contentPanel.BackColor=Color.FromArgb(20,16,22);Controls.Add(contentPanel);
       waveform.Location=new Point(18,8);waveform.Size=new Size(392,64);contentPanel.Controls.Add(waveform);
@@ -77,8 +78,7 @@ namespace LuciferNative {
       talkButton.Text="🎙 Talk";talkButton.Location=new Point(18,317);talkButton.Size=new Size(120,40);talkButton.AccessibleName="Talk to LUCIFER";StyleButton(talkButton,false);talkButton.Click+=delegate{MarkActive();ShowPassive();talk();};contentPanel.Controls.Add(talkButton);
       stopButton.Text="■ Stop";stopButton.Location=new Point(148,317);stopButton.Size=new Size(120,40);stopButton.AccessibleName="Stop LUCIFER";StyleButton(stopButton,true);stopButton.Click+=delegate{MarkActive();stop();};contentPanel.Controls.Add(stopButton);
 
-      var hint=new Label{Text="Ctrl+Alt+Space summons · Ctrl+Alt+Esc stops",Font=new Font("Segoe UI",8),ForeColor=Color.FromArgb(136,122,133),Location=new Point(18,375),Size=new Size(392,28),TextAlign=ContentAlignment.MiddleLeft};
-      contentPanel.Controls.Add(hint);
+      shortcutLabel.Text="Ctrl+Alt+Space summons · Ctrl+Alt+Esc stops";shortcutLabel.Font=new Font("Segoe UI",8);shortcutLabel.ForeColor=Color.FromArgb(136,122,133);shortcutLabel.Location=new Point(18,375);shortcutLabel.Size=new Size(392,28);shortcutLabel.TextAlign=ContentAlignment.MiddleLeft;contentPanel.Controls.Add(shortcutLabel);
 
       Paint+=delegate(object sender,PaintEventArgs e){using(var pen=new Pen(Color.FromArgb(78,255,73,132),1))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);};
       Resize+=delegate{ApplyRoundedRegion();};
@@ -122,6 +122,7 @@ namespace LuciferNative {
       if(currentState!="Idle")MarkActive();
     }
 
+    public void SetSummonShortcut(bool available){shortcutLabel.Text=available?"Ctrl+Alt+Space summons · Ctrl+Alt+Esc stops":"Summon shortcut unavailable · use tray/Talk · Ctrl+Alt+Esc stops";}
     public void SetResult(string text){if(!String.IsNullOrWhiteSpace(text))resultLabel.Text=text;MarkActive();}
     public void SetTranscript(string text){if(!String.IsNullOrWhiteSpace(text))transcriptLabel.Text=text;MarkActive();}
 
