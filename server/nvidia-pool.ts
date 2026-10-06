@@ -27,7 +27,7 @@ export async function syncNvidiaPool(store:Store,selected:ResolvedAIConfig,signa
   const response=await gatewayFetch(selected,'models',undefined,signal,transport);
   if(!response.ok)throw Object.assign(new Error('NVIDIA model discovery failed (HTTP '+response.status+').'),{status:response.status});
   const value=await response.json() as any;
-  const ids=[...new Set((value.data||[]).map((item:any)=>String(item?.id||'').trim()).filter(Boolean))].sort();
+  const ids:string[]=Array.from(new Set<string>((value.data||[]).map((item:any)=>String(item?.id||'').trim()).filter((id:string)=>id.length>0))).sort();
   if(!ids.length)throw new Error('NVIDIA returned no discoverable model IDs.');
   const seen=new Set(ids);
   for(const model of ids){
