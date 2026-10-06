@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 test('native desktop panel is wired to the real wake and task pipeline',async()=>{
-  const [tray,overlay,build,worker]=await Promise.all([
+  const [tray,overlay,build,worker,speech]=await Promise.all([
     readFile('companion/native/Tray.cs','utf8'),
     readFile('companion/native/Overlay.cs','utf8'),
     readFile('scripts/build-native-tray.ps1','utf8'),
-    readFile('companion/background.ts','utf8')
+    readFile('companion/background.ts','utf8'),
+    readFile('companion/native/speech_worker.py','utf8')
   ]);
   assert.match(overlay,/sealed class AssistantOverlay/);
   assert.match(overlay,/ShowWithoutActivation/);
@@ -28,4 +29,7 @@ test('native desktop panel is wired to the real wake and task pipeline',async()=
   assert.match(overlay,/sealed class WakeHero/,'wake activation must have a dedicated cinematic scene');
   assert.match(overlay,/LinearGradientBrush/,'wake scene should use layered premium gradients');
   assert.match(tray,/overlay\.ShowWakeScene\(\)/,'real wake activation must open the cinematic scene');
+  assert.match(speech,/lucyfer\|lusifer\|lousifer\|loosefer\|loocifer/,'wake matcher must tolerate common Lucifer transcriptions');
+  assert.match(speech,/edit_distance\(token, "lucifer"\) <= 2/,'wake matcher must include bounded local fuzzy matching');
+  assert.match(speech,/லூசிபர்\|லூசிஃபர்/,'wake matcher must retain Tamil wake spellings');
 });
