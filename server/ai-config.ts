@@ -40,7 +40,7 @@ class LocalCredentialVault {
 
 function defaults(provider: ProviderName) {
   if (provider === 'openai') return { protocol: 'responses' as const, model: config.model, baseUrl: config.baseUrl, envKey: config.apiKey };
-  if (provider === 'gemini') return { protocol: 'gemini_generate_content' as const, model: config.geminiModel || 'gemini-flash-latest', baseUrl: 'https://generativelanguage.googleapis.com', envKey: config.geminiApiKey };
+  if (provider === 'gemini') return { protocol: 'gemini_generate_content' as const, model: config.geminiModel || 'gemini-3.8-flash', baseUrl: 'https://generativelanguage.googleapis.com', envKey: config.geminiApiKey };
   if(provider==='freellmapi')return {protocol:'chat_completions' as const,model:'',baseUrl:'http://127.0.0.1:31415/v1',envKey:''};
   return { protocol: 'ollama_chat' as const, model: config.ollamaModel || 'gemma3:1b', baseUrl: config.ollamaBaseUrl, envKey: '' };
 }
