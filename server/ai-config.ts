@@ -18,7 +18,7 @@ export const aiConfigInputSchema = z.object({
 }).strict().superRefine((value, ctx) => {
   const expected = value.provider === 'openai' ? 'responses' : value.provider === 'gemini' ? 'gemini_generate_content' : value.provider==='freellmapi'?'chat_completions':value.provider==='ollama'?'ollama_chat':undefined;
   if (expected && value.protocol !== expected) ctx.addIssue({ code: 'custom', path: ['protocol'], message: `${value.provider} requires ${expected}` });
-  if(value.provider==='custom'&&!['responses','chat_completions'].includes(value.protocol))ctx.addIssue({code:'custom',path:['protocol'],message:'Custom providers support OpenAI-compatible Responses or Chat Completions protocols'});
+  if(value.provider==='custom'&&!['responses','chat_completions','gemini_generate_content'].includes(value.protocol))ctx.addIssue({code:'custom',path:['protocol'],message:'Custom providers support native Gemini GenerateContent or OpenAI-compatible Responses/Chat Completions protocols'});
   if(value.provider==='custom'&&!value.customName?.trim())ctx.addIssue({code:'custom',path:['customName'],message:'Give the custom provider a display name'});
   if(value.provider==='custom'&&!value.ownerManagedRoute)ctx.addIssue({code:'custom',path:['ownerManagedRoute'],message:'Confirm that you configured this endpoint and accept its quota/billing policy'});
   if (value.provider !== 'ollama' && !value.apiKey) { /* An existing vault or environment key may be retained. */ }
@@ -67,7 +67,7 @@ export class AIConfigService {
     const record = this.record(); const provider = this.provider();
     if (!providers.includes(provider)) return { provider, protocol: 'unknown', supported: false, configured: false, verified: false, status: 'unsupported', model: '', baseUrl: '', credentialSource: 'none' };
     const fallback = defaults(provider); const protocol = record?.protocol || fallback.protocol;
-    const supported = (provider === 'openai' && protocol === 'responses') || (provider === 'gemini' && protocol === 'gemini_generate_content') || (provider === 'ollama' && protocol === 'ollama_chat')||(provider==='freellmapi'&&protocol==='chat_completions')||(provider==='custom'&&['responses','chat_completions'].includes(protocol));
+    const supported = (provider === 'openai' && protocol === 'responses') || (provider === 'gemini' && protocol === 'gemini_generate_content') || (provider === 'ollama' && protocol === 'ollama_chat')||(provider==='freellmapi'&&protocol==='chat_completions')||(provider==='custom'&&['responses','chat_completions','gemini_generate_content'].includes(protocol));
     const metadata={testedAt:record?.testedAt,lastError:record?.lastError,lastErrorCode:record?.lastErrorCode,lastDiagnostics:record?.lastDiagnostics,quotaNote:quotaNote(provider),windowsBridge:!!record?.windowsBridge,freeRouteAllowed:!!record?.freeRouteAllowed,customName:record?.customName,ownerManagedRoute:!!record?.ownerManagedRoute,runtimeFault:this.store.get<any>('ai_runtime',provider)};
     if (record?.disconnected) return { provider, protocol, supported, configured: false, verified: false, status: 'disconnected', model: record.model || fallback.model, baseUrl: record.baseUrl || fallback.baseUrl, credentialSource: 'none', ...metadata };
     const runtime = provider === 'ollama' ? undefined : await this.credential(provider); const hasKey = !!runtime?.apiKey || !!fallback.envKey;
