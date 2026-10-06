@@ -11,7 +11,7 @@ export interface AppState {
   files: StoredFile[]; memory: Memory[]; reminders: Reminder[]; skills: Skill[];
   integrations: { id: string; name: string; status: string; detail: string }[];
   notifications: any[]; proposals: any[]; deliveries: any[]; emergency?: boolean; telegram?: any;
-  ai?: any;
+  ai?: any; nvidiaPool?: any;
 }
 type BoundaryProps = { children: ReactNode; onBack?: () => void };
 type BoundaryState = { error: Error | null };
