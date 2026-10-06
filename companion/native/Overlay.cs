@@ -197,14 +197,33 @@ namespace LuciferNative {
       }
       public void SetState(string value){state=value??"Idle";Invalidate();}
       protected override void OnPaint(PaintEventArgs e){
-        base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;RectangleF box=new RectangleF(8,12,Width-16,Height-22);
+        base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+        bool listening=state=="Listening",thinking=state=="Understanding"||state=="Working",talking=state=="Speaking";
+        float bob=motionAllowed?(float)Math.Sin(frame*.9)*1.4f:0f;
+        RectangleF box=new RectangleF(8,12+bob,Width-16,Height-22);
         Color accent=state=="Error"?Color.FromArgb(235,74,96):state=="Offline"?Color.FromArgb(145,132,143):Color.FromArgb(255,72,135);
-        using(var glow=new SolidBrush(Color.FromArgb(22+(frame%3)*8,accent)))e.Graphics.FillEllipse(glow,1,5,Width-2,Height-8);
+        int pulse=motionAllowed?(frame%4)*8:12;
+        using(var outer=new Pen(Color.FromArgb(34+pulse,accent),2))e.Graphics.DrawEllipse(outer,2,6,Width-4,Height-10);
+        if(listening||thinking||talking){using(var halo=new Pen(Color.FromArgb(22+pulse/2,accent),1))e.Graphics.DrawEllipse(halo,0,3,Width,Height-4);}
+        using(var glow=new SolidBrush(Color.FromArgb(22+pulse,accent)))e.Graphics.FillEllipse(glow,3,7,Width-6,Height-10);
         using(var body=new SolidBrush(Color.FromArgb(54,45,59)))RoundRect(e.Graphics,body,box,18);
-        using(var border=new Pen(Color.FromArgb(185,accent),2))e.Graphics.DrawArc(border,box.X,box.Y,box.Width,box.Height,0,360);
-        float eyeY=box.Y+box.Height*.42f,eyeShift=(state=="Speaking"||state=="Working")?(frame%2):0;
-        using(var eyes=new SolidBrush(accent)){e.Graphics.FillEllipse(eyes,box.X+box.Width*.27f,eyeY+eyeShift,8,8);e.Graphics.FillEllipse(eyes,box.X+box.Width*.63f,eyeY+eyeShift,8,8);}
-        using(var mouth=new Pen(Color.FromArgb(210,230,214,224),2))e.Graphics.DrawArc(mouth,box.X+box.Width*.34f,box.Y+box.Height*.56f,box.Width*.32f,box.Height*.18f,5,170);
+        using(var border=new Pen(Color.FromArgb(205,accent),2))e.Graphics.DrawArc(border,box.X,box.Y,box.Width,box.Height,0,360);
+        float antennaX=box.X+box.Width*.5f,antennaY=box.Y-3;
+        using(var antenna=new Pen(Color.FromArgb(180,accent),2)){e.Graphics.DrawLine(antenna,antennaX,antennaY,antennaX,box.Y+4);e.Graphics.DrawEllipse(antenna,antennaX-2,antennaY-4,4,4);}
+        float eyeY=box.Y+box.Height*.41f;
+        float scan=thinking&&motionAllowed?(frame%5-2)*1.5f:0f;
+        bool blink=motionAllowed&&frame==7&&!talking;
+        using(var eyes=new SolidBrush(accent)){
+          if(blink){e.Graphics.FillRectangle(eyes,box.X+box.Width*.27f,eyeY+4,9,2);e.Graphics.FillRectangle(eyes,box.X+box.Width*.63f,eyeY+4,9,2);}
+          else{e.Graphics.FillEllipse(eyes,box.X+box.Width*.27f+scan,eyeY,9,9);e.Graphics.FillEllipse(eyes,box.X+box.Width*.63f+scan,eyeY,9,9);}
+        }
+        using(var cheek=new SolidBrush(Color.FromArgb(listening?85:35,accent))){e.Graphics.FillEllipse(cheek,box.X+box.Width*.18f,box.Y+box.Height*.56f,7,4);e.Graphics.FillEllipse(cheek,box.X+box.Width*.73f,box.Y+box.Height*.56f,7,4);}
+        using(var mouth=new Pen(Color.FromArgb(225,235,218,229),2)){
+          if(talking&&motionAllowed){float h=6+(frame%4)*2;e.Graphics.DrawEllipse(mouth,box.X+box.Width*.39f,box.Y+box.Height*.60f,box.Width*.22f,h);}
+          else if(thinking)e.Graphics.DrawLine(mouth,box.X+box.Width*.39f,box.Y+box.Height*.65f,box.X+box.Width*.61f,box.Y+box.Height*.65f);
+          else e.Graphics.DrawArc(mouth,box.X+box.Width*.34f,box.Y+box.Height*.56f,box.Width*.32f,box.Height*.18f,5,170);
+        }
+        if(listening){using(var ear=new Pen(Color.FromArgb(150,accent),2)){e.Graphics.DrawArc(ear,box.X-3,box.Y+box.Height*.31f,10,18,80,200);e.Graphics.DrawArc(ear,box.Right-7,box.Y+box.Height*.31f,10,18,260,200);}}
       }
       static void RoundRect(Graphics g,Brush brush,RectangleF r,float radius){
         using(var p=new GraphicsPath()){p.AddArc(r.X,r.Y,radius,radius,180,90);p.AddArc(r.Right-radius,r.Y,radius,radius,270,90);p.AddArc(r.Right-radius,r.Bottom-radius,radius,radius,0,90);p.AddArc(r.X,r.Bottom-radius,radius,radius,90,90);p.CloseFigure();g.FillPath(brush,p);}
