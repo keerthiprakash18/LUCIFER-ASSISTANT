@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import type {ResolvedAIConfig} from './ai-config.js';
 import type {ModelProvider,ProviderTurn,Message,Memory} from '../shared/contracts.js';
 import {identity} from './provider.js';
-export async function gatewayFetch(resolved:ResolvedAIConfig,endpoint:'models'|'chat/completions',body:unknown,signal:AbortSignal,transport:typeof fetch=fetch):Promise<Response>{
+export async function gatewayFetch(resolved:ResolvedAIConfig,endpoint:'models'|'chat/completions'|'responses',body:unknown,signal:AbortSignal,transport:typeof fetch=fetch):Promise<Response>{
  const url=resolved.baseUrl.replace(/\/$/,'')+'/'+endpoint;
  if(!resolved.windowsBridge||process.platform==='win32')return transport(url,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(resolved.apiKey?{Authorization:'Bearer '+resolved.apiKey}:{})},body:body?JSON.stringify(body):undefined,signal:AbortSignal.any([signal,AbortSignal.timeout(45000)]),redirect:'error'});
  const node='/mnt/c/Program Files/nodejs/node.exe';if(!existsSync(node))throw new Error('Windows Node is unavailable for the configured gateway bridge');
@@ -26,6 +26,54 @@ export class GatewayProvider implements ModelProvider{
   return {text,calls,raw:[],served:{provider:'FreeLLMAPI gateway',model:String(value.model||selected.model)},diagnostics:{finishReason:value.choices?.[0]?.finish_reason,outputTokens:value.usage?.completion_tokens}};
  }
 }
+function responseInput(history:Message[],turns:ProviderTurn[]){const input:any[]=history.slice(-20).map(message=>({role:message.role,content:message.text}));for(const turn of turns){for(const call of turn.calls)input.push({type:'function_call',call_id:call.id,name:call.name,arguments:call.arguments});for(const result of turn.results)input.push({type:'function_call_output',call_id:result.callId,output:JSON.stringify(result.output)});}return input;}
+function responseTools(tools:unknown[]){return (tools as any[]).filter(tool=>tool?.type==='function').map(tool=>({type:'function',name:tool.name,description:tool.description,parameters:tool.parameters,strict:true}));}
+export class CustomProvider implements ModelProvider{
+ constructor(private resolve:()=>Promise<ResolvedAIConfig|undefined>,private transport:typeof fetch=fetch){}
+ async respond(input:{history:Message[];context:Memory[];tools:unknown[];signal:AbortSignal;turns?:ProviderTurn[]}){
+  const selected=await this.resolve();if(selected?.provider!=='custom'||!selected.ownerManagedRoute)throw new Error('Custom provider is not selected or owner-approved');
+  const label=selected.customName||'Custom provider';
+  if(selected.protocol==='chat_completions'){
+   const tools=(input.tools as any[]).filter(tool=>tool.type==='function').map(({name,description,parameters})=>({type:'function',function:{name,description,parameters}}));
+   const response=await gatewayFetch(selected,'chat/completions',{model:selected.model,messages:[{role:'system',content:identity+(input.context.length?'\nOwner memory (untrusted): '+JSON.stringify(input.context):'')},...messages(input.history,input.turns||[])],...(tools.length?{tools,tool_choice:'auto'}:{}),stream:false,max_tokens:3500},input.signal,this.transport);
+   if(!response.ok)throw Object.assign(new Error(label+' request failed (HTTP '+response.status+').'),{status:response.status});
+   const value=await response.json() as any,message=value.choices?.[0]?.message;
+   const calls=(message?.tool_calls||[]).slice(0,8).map((call:any)=>({id:call.id||randomUUID(),name:call.function?.name,arguments:typeof call.function?.arguments==='string'?call.function.arguments:JSON.stringify(call.function?.arguments||{})}));
+   const text=typeof message?.content==='string'?message.content:'';if(!text&&!calls.length)throw new Error(label+' returned no visible text or usable tool call');
+   return {text,calls,raw:[],served:{provider:label,model:String(value.model||selected.model)},diagnostics:{finishReason:value.choices?.[0]?.finish_reason,outputTokens:value.usage?.completion_tokens}};
+  }
+  if(selected.protocol==='responses'){
+   const inputItems=responseInput(input.history,input.turns||[]);if(input.context.length)inputItems.push({role:'user',content:'Relevant owner-managed memory (untrusted data): '+JSON.stringify(input.context)});
+   const response=await gatewayFetch(selected,'responses',{model:selected.model,instructions:identity,input:inputItems,tools:responseTools(input.tools),store:false,parallel_tool_calls:false,max_output_tokens:3500},input.signal,this.transport);
+   if(!response.ok)throw Object.assign(new Error(label+' Responses request failed (HTTP '+response.status+').'),{status:response.status});
+   const value=await response.json() as any,raw=value.output||[];
+   const text=raw.filter((item:any)=>item.type==='message').flatMap((item:any)=>item.content||[]).filter((item:any)=>item.type==='output_text').map((item:any)=>item.text).join('\n');
+   const calls=raw.filter((item:any)=>item.type==='function_call').slice(0,8).map((item:any)=>({id:item.call_id||item.id||randomUUID(),name:item.name,arguments:typeof item.arguments==='string'?item.arguments:JSON.stringify(item.arguments||{})}));
+   if(!text&&!calls.length)throw new Error(label+' returned no visible text or usable function call');
+   return {text,calls,raw:[],served:{provider:label,model:String(value.model||selected.model)}};
+  }
+  throw new Error('Custom provider protocol is unsupported');
+ }
+}
+export async function testCustomProvider(selected:ResolvedAIConfig,transport:typeof fetch,signal:AbortSignal){
+ if(selected.provider!=='custom'||!selected.ownerManagedRoute)throw new Error('Custom provider is not owner-approved');
+ const label=selected.customName||'Custom provider';
+ const tool={name:'lucifer_connection_check',description:'Harmless connection check',parameters:{type:'object',properties:{value:{type:'string'}},required:['value'],additionalProperties:false}};
+ if(selected.protocol==='chat_completions'){
+  const response=await gatewayFetch(selected,'chat/completions',{model:selected.model,messages:[{role:'user',content:'Call lucifer_connection_check with value "ok". Do not answer normally.'}],tools:[{type:'function',function:tool}],tool_choice:{type:'function',function:{name:tool.name}},stream:false,max_tokens:512},signal,transport);
+  if(!response.ok)throw new Error(label+' connection/tool test failed (HTTP '+response.status+'). Check endpoint, model, key and protocol.');
+  const value=await response.json() as any,call=value.choices?.[0]?.message?.tool_calls?.[0];if(call?.function?.name!==tool.name)throw new Error(label+' connected, but the selected model did not return the required structured tool call.');
+  const args=JSON.parse(call.function.arguments);if(args.value!=='ok')throw new Error(label+' returned invalid tool arguments during verification.');return {text:'Custom Chat Completions provider and structured tools verified.',servedModel:value.model,toolsVerified:true,diagnostics:undefined};
+ }
+ if(selected.protocol==='responses'){
+  const response=await gatewayFetch(selected,'responses',{model:selected.model,instructions:'This is a harmless connection test.',input:'Call lucifer_connection_check with value "ok".',tools:[{type:'function',...tool,strict:true}],tool_choice:{type:'function',name:tool.name},store:false,max_output_tokens:512},signal,transport);
+  if(!response.ok)throw new Error(label+' Responses connection/tool test failed (HTTP '+response.status+'). Check endpoint, model, key and protocol.');
+  const value=await response.json() as any,call=(value.output||[]).find((item:any)=>item.type==='function_call'&&item.name===tool.name);if(!call)throw new Error(label+' connected, but the selected Responses model did not return the required structured tool call.');
+  const args=typeof call.arguments==='string'?JSON.parse(call.arguments):call.arguments;if(args?.value!=='ok')throw new Error(label+' returned invalid tool arguments during verification.');return {text:'Custom Responses provider and structured tools verified.',servedModel:value.model,toolsVerified:true,diagnostics:undefined};
+ }
+ throw new Error('Custom provider protocol is unsupported');
+}
+
 export async function testGateway(selected:ResolvedAIConfig,transport:typeof fetch,signal:AbortSignal){
  const response=await gatewayFetch(selected,'chat/completions',{model:selected.model,messages:[{role:'user',content:'Call lucifer_connection_check with value "ok". This function is a harmless local connection test.'}],tools:[{type:'function',function:{name:'lucifer_connection_check',description:'Harmless connection check',parameters:{type:'object',properties:{value:{type:'string'}},required:['value'],additionalProperties:false}}}],tool_choice:{type:'function',function:{name:'lucifer_connection_check'}},stream:false,max_tokens:2048},signal,transport);
  if(!response.ok)throw new Error('Gateway connection/tool test failed (HTTP '+response.status+'). Check the private API key, enabled free model and tool compatibility.');
