@@ -84,7 +84,7 @@ namespace LuciferNative {
 
       shortcutLabel.Text="Ctrl+Alt+Space summons · Ctrl+Alt+Esc stops";shortcutLabel.Font=new Font("Segoe UI",8);shortcutLabel.ForeColor=Color.FromArgb(136,122,133);shortcutLabel.Location=new Point(18,375);shortcutLabel.Size=new Size(392,28);shortcutLabel.TextAlign=ContentAlignment.MiddleLeft;contentPanel.Controls.Add(shortcutLabel);
 
-      Paint+=delegate(object sender,PaintEventArgs e){using(var pen=new Pen(Color.FromArgb(78,255,73,132),1))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);};
+      Paint+=delegate(object sender,PaintEventArgs e){Color edge=wakeScene?Color.FromArgb(110,68,190,255):Color.FromArgb(78,255,73,132);using(var pen=new Pen(edge,1))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);};
       Resize+=delegate{ApplyRoundedRegion();};
       FormClosing+=delegate(object sender,FormClosingEventArgs e){if(e.CloseReason==CloseReason.UserClosing){e.Cancel=true;Collapse();}};
       Deactivate+=delegate{if(currentState=="Idle")MarkActive();};
@@ -118,7 +118,7 @@ namespace LuciferNative {
     public void ShowWakeScene(){
       MarkActive();wakeScene=true;wakeSceneAt=DateTime.UtcNow;collapsed=false;
       Size=new Size(520,340);header.Visible=false;contentPanel.Visible=false;wakeHero.Visible=true;wakeHero.SetState(currentState);
-      wakeHero.BringToFront();EnsureVisibleOnScreen();
+      wakeHero.BringToFront();Rectangle area=Screen.FromPoint(Cursor.Position).WorkingArea;Location=new Point(area.Left+(area.Width-Width)/2,area.Top+Math.Max(48,(area.Height-Height)/2-30));EnsureVisibleOnScreen();
       Opacity=0.0;if(!Visible)Show();
       var fade=new Timer();fade.Interval=16;fade.Tick+=delegate{if(IsDisposed){fade.Stop();fade.Dispose();return;}Opacity=Math.Min(.985,Opacity+.085);if(Opacity>=.985){fade.Stop();fade.Dispose();}};fade.Start();
       Invalidate();
@@ -162,7 +162,7 @@ namespace LuciferNative {
     }
 
     public void Expand(){
-      wakeScene=false;wakeHero.Visible=false;header.Visible=true;if(!collapsed){ShowTaskPanel();return;}collapsed=false;MarkActive();
+      if(!collapsed)return;wakeScene=false;wakeHero.Visible=false;header.Visible=true;collapsed=false;MarkActive();
       Size=new Size(ExpandedWidth,ExpandedHeight);header.Dock=DockStyle.Top;header.Height=112;
       avatar.Location=new Point(18,16);avatar.Size=new Size(72,72);
       contentPanel.Visible=true;title.Visible=true;stateLabel.Visible=true;detailLabel.Visible=true;collapseButton.Visible=true;
