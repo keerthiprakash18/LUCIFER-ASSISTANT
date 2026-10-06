@@ -29,8 +29,12 @@ namespace LuciferNative {
     readonly Label shortcutLabel=new Label();
     readonly RobotAvatar avatar=new RobotAvatar();
     readonly Waveform waveform=new Waveform();
+    readonly WakeHero wakeHero=new WakeHero();
     readonly Timer idleTimer=new Timer();
+    readonly Timer wakeTimer=new Timer();
     bool collapsed;
+    bool wakeScene;
+    DateTime wakeSceneAt=DateTime.MinValue;
     bool dragging;
     Point dragOrigin;
     Point windowOrigin;
@@ -85,6 +89,13 @@ namespace LuciferNative {
       FormClosing+=delegate(object sender,FormClosingEventArgs e){if(e.CloseReason==CloseReason.UserClosing){e.Cancel=true;Collapse();}};
       Deactivate+=delegate{if(currentState=="Idle")MarkActive();};
 
+      wakeHero.Dock=DockStyle.Fill;wakeHero.Visible=false;wakeHero.BackColor=Color.Transparent;Controls.Add(wakeHero);wakeHero.BringToFront();
+      wakeTimer.Interval=33;wakeTimer.Tick+=delegate{
+        if(!wakeScene)return;
+        wakeHero.Advance();
+        if((currentState=="Working"||currentState=="Understanding")&&(DateTime.UtcNow-wakeSceneAt).TotalMilliseconds>520)ShowTaskPanel();
+      };wakeTimer.Start();
+
       RestorePosition();
       idleTimer.Interval=1000;idleTimer.Tick+=delegate{if(!collapsed&&Visible&&currentState=="Idle"&&(DateTime.UtcNow-lastActive).TotalSeconds>=10)Collapse();};idleTimer.Start();
       ApplyRoundedRegion();
@@ -104,8 +115,25 @@ namespace LuciferNative {
       submit(text);
     }
 
+    public void ShowWakeScene(){
+      MarkActive();wakeScene=true;wakeSceneAt=DateTime.UtcNow;collapsed=false;
+      Size=new Size(520,340);header.Visible=false;contentPanel.Visible=false;wakeHero.Visible=true;wakeHero.SetState(currentState);
+      wakeHero.BringToFront();EnsureVisibleOnScreen();
+      Opacity=0.0;if(!Visible)Show();
+      var fade=new Timer();fade.Interval=16;fade.Tick+=delegate{if(IsDisposed){fade.Stop();fade.Dispose();return;}Opacity=Math.Min(.985,Opacity+.085);if(Opacity>=.985){fade.Stop();fade.Dispose();}};fade.Start();
+      Invalidate();
+    }
+
+    void ShowTaskPanel(){
+      if(!wakeScene)return;wakeScene=false;wakeHero.Visible=false;header.Visible=true;contentPanel.Visible=true;
+      Size=new Size(ExpandedWidth,ExpandedHeight);header.Dock=DockStyle.Top;header.Height=112;
+      avatar.Location=new Point(18,16);avatar.Size=new Size(72,72);title.Visible=true;stateLabel.Visible=true;detailLabel.Visible=true;collapseButton.Visible=true;
+      EnsureVisibleOnScreen();ApplyRoundedRegion();Invalidate();
+    }
+
     public void ShowPassive(){
       MarkActive();
+      if(wakeScene)ShowTaskPanel();
       if(collapsed)Expand();
       EnsureVisibleOnScreen();
       if(!Visible)Show();
@@ -118,7 +146,7 @@ namespace LuciferNative {
       if(!String.IsNullOrWhiteSpace(transcript))transcriptLabel.Text=transcript;
       if(!String.IsNullOrWhiteSpace(result))resultLabel.Text=result;
       else if(currentState=="Working"||currentState=="Understanding")resultLabel.Text=detailLabel.Text;
-      avatar.SetState(currentState);waveform.SetLevel(level,currentState);
+      avatar.SetState(currentState);waveform.SetLevel(level,currentState);wakeHero.SetState(currentState,detail,level);
       if(currentState!="Idle")MarkActive();
     }
 
@@ -127,14 +155,14 @@ namespace LuciferNative {
     public void SetTranscript(string text){if(!String.IsNullOrWhiteSpace(text))transcriptLabel.Text=text;MarkActive();}
 
     public void Collapse(){
-      if(collapsed)return;collapsed=true;MarkActive();SavePosition();
+      if(collapsed)return;wakeScene=false;wakeHero.Visible=false;header.Visible=true;collapsed=true;MarkActive();SavePosition();
       contentPanel.Visible=false;title.Visible=false;stateLabel.Visible=false;detailLabel.Visible=false;collapseButton.Visible=false;
       header.Dock=DockStyle.Fill;header.Height=LauncherSize;avatar.Location=new Point(5,5);avatar.Size=new Size(72,72);
       Size=new Size(LauncherSize,LauncherSize);ApplyRoundedRegion();EnsureVisibleOnScreen();
     }
 
     public void Expand(){
-      if(!collapsed)return;collapsed=false;MarkActive();
+      wakeScene=false;wakeHero.Visible=false;header.Visible=true;if(!collapsed){ShowTaskPanel();return;}collapsed=false;MarkActive();
       Size=new Size(ExpandedWidth,ExpandedHeight);header.Dock=DockStyle.Top;header.Height=112;
       avatar.Location=new Point(18,16);avatar.Size=new Size(72,72);
       contentPanel.Visible=true;title.Visible=true;stateLabel.Visible=true;detailLabel.Visible=true;collapseButton.Visible=true;
@@ -186,10 +214,48 @@ namespace LuciferNative {
       }
     }
 
+    sealed class WakeHero : Control {
+      readonly bool motionAllowed=RobotAvatar.ClientAnimationEnabled();int frame;string state="Listening",detail="Local wake ready";double level;
+      public WakeHero(){SetStyle(ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint|ControlStyles.SupportsTransparentBackColor,true);}
+      public void Advance(){if(motionAllowed)frame=(frame+1)%240;Invalidate();}
+      public void SetState(string current){state=String.IsNullOrWhiteSpace(current)?"Listening":current;Invalidate();}
+      public void SetState(string current,string text,double audio){state=String.IsNullOrWhiteSpace(current)?"Listening":current;detail=String.IsNullOrWhiteSpace(text)?"Ready":text;level=Math.Max(0,Math.Min(1,audio/650.0));Invalidate();}
+      protected override void OnPaint(PaintEventArgs e){
+        base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;
+        Rectangle r=ClientRectangle;if(r.Width<10||r.Height<10)return;
+        using(var bg=new LinearGradientBrush(r,Color.FromArgb(6,18,28),Color.FromArgb(12,42,67),18f))e.Graphics.FillRectangle(bg,r);
+        using(var vignette=new SolidBrush(Color.FromArgb(80,2,9,15))){e.Graphics.FillRectangle(vignette,0,0,r.Width,34);e.Graphics.FillRectangle(vignette,0,r.Height-42,r.Width,42);}
+        int cx=r.Width/2,cy=142;float pulse=motionAllowed?(float)(.5+.5*Math.Sin(frame*.12)):.5f;
+        for(int i=0;i<3;i++){float radius=58+i*24+pulse*5;int alpha=52-i*12;using(var ring=new Pen(Color.FromArgb(alpha,55,180,255),i==0?2f:1f))e.Graphics.DrawEllipse(ring,cx-radius,cy-radius,radius*2,radius*2);}
+        for(int i=0;i<12;i++){double angle=(frame*.018+i*Math.PI*2/12);float radius=92+(i%3)*5;float x=cx+(float)Math.Cos(angle)*radius,y=cy+(float)Math.Sin(angle)*radius;using(var dot=new SolidBrush(Color.FromArgb(70+(i%4)*22,66,190,255)))e.Graphics.FillEllipse(dot,x-2,y-2,4,4);}
+        using(var coreGlow=new SolidBrush(Color.FromArgb(30+(int)(35*pulse),45,178,255)))e.Graphics.FillEllipse(coreGlow,cx-64,cy-64,128,128);
+        RectangleF head=new RectangleF(cx-48,cy-40,96,80);
+        using(var body=new LinearGradientBrush(head,Color.FromArgb(27,51,70),Color.FromArgb(13,28,42),90f))RoundRect(e.Graphics,body,head,28);
+        using(var border=new Pen(Color.FromArgb(205,72,196,255),2))RoundRectStroke(e.Graphics,border,head,28);
+        float scan=state=="Understanding"||state=="Working"?(motionAllowed?(frame%24-12)*.55f:0):0;
+        using(var eye=new SolidBrush(Color.FromArgb(245,91,211,255))){e.Graphics.FillEllipse(eye,cx-27+scan,cy-8,12,12);e.Graphics.FillEllipse(eye,cx+15+scan,cy-8,12,12);}
+        using(var mouth=new Pen(Color.FromArgb(220,185,234,255),2)){
+          if(state=="Speaking"){float h=8+(motionAllowed?(frame%5)*2:4);e.Graphics.DrawEllipse(mouth,cx-12,cy+16,24,h);}
+          else e.Graphics.DrawArc(mouth,cx-15,cy+12,30,18,5,170);
+        }
+        int barY=235;for(int i=0;i<34;i++){double wave=.18+Math.Abs(Math.Sin(i*.61+frame*.09))*(state=="Listening"?(.22+level*.78):.32);float h=(float)(4+wave*18);float x=cx-136+i*8;using(var b=new SolidBrush(Color.FromArgb(80+(int)(110*wave),57,177,241)))e.Graphics.FillRectangle(b,x,barY-h/2,3,h);}
+        using(var labelFont=new Font("Segoe UI Semibold",8,FontStyle.Bold))using(var labelBrush=new SolidBrush(Color.FromArgb(128,165,199,220)))e.Graphics.DrawString("PERSONAL INTELLIGENCE  •  SECURE LOCAL WAKE",labelFont,labelBrush,24,22);
+        string headline=state=="Speaking"?"YES BOSS":state=="Working"?"WORKING":state=="Understanding"?"UNDERSTANDING":"LUCIFER";
+        using(var font=new Font("Segoe UI Semibold",22,FontStyle.Bold))using(var brush=new SolidBrush(Color.FromArgb(245,244,250,255))){var size=e.Graphics.MeasureString(headline,font);e.Graphics.DrawString(headline,font,brush,cx-size.Width/2,270);}
+        string sub=state=="Listening"?"Listening for your command":state=="Speaking"?"Wake confirmed":detail;
+        if(sub.Length>54)sub=sub.Substring(0,54)+"…";
+        using(var font=new Font("Segoe UI",9))using(var brush=new SolidBrush(Color.FromArgb(165,175,202,220))){var size=e.Graphics.MeasureString(sub,font);e.Graphics.DrawString(sub,font,brush,cx-size.Width/2,307);}
+        int scanX=motionAllowed?(frame*7)%Math.Max(1,r.Width):r.Width/2;using(var scanPen=new Pen(Color.FromArgb(22,66,193,255),1))e.Graphics.DrawLine(scanPen,scanX,44,scanX,r.Height-48);
+      }
+      static void RoundRect(Graphics g,Brush brush,RectangleF r,float radius){using(var p=Path(r,radius))g.FillPath(brush,p);}
+      static void RoundRectStroke(Graphics g,Pen pen,RectangleF r,float radius){using(var p=Path(r,radius))g.DrawPath(pen,p);}
+      static GraphicsPath Path(RectangleF r,float radius){var p=new GraphicsPath();p.AddArc(r.X,r.Y,radius,radius,180,90);p.AddArc(r.Right-radius,r.Y,radius,radius,270,90);p.AddArc(r.Right-radius,r.Bottom-radius,radius,radius,0,90);p.AddArc(r.X,r.Bottom-radius,radius,radius,90,90);p.CloseFigure();return p;}
+    }
+
     sealed class RobotAvatar : Control {
       readonly Timer timer=new Timer();readonly bool motionAllowed=ClientAnimationEnabled();string state="Idle";int frame;public event EventHandler LauncherClicked;
       [System.Runtime.InteropServices.DllImport("user32.dll")]static extern bool SystemParametersInfo(uint action,uint parameter,ref bool value,uint flags);
-      static bool ClientAnimationEnabled(){bool enabled=true;try{SystemParametersInfo(0x1042,0,ref enabled,0);}catch{}return enabled;}
+      public static bool ClientAnimationEnabled(){bool enabled=true;try{SystemParametersInfo(0x1042,0,ref enabled,0);}catch{}return enabled;}
       public RobotAvatar(){
         SetStyle(ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.UserPaint,true);
         Cursor=Cursors.Hand;timer.Interval=180;timer.Tick+=delegate{if(motionAllowed){frame=(frame+1)%8;Invalidate();}};timer.Start();
