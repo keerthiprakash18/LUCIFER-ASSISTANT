@@ -33,11 +33,15 @@ Write-Host ('Target model: ' + $Model)
 $ollama=Resolve-OllamaExe
 if(!$ollama -and $InstallIfMissing){
   Write-Host 'Ollama is not installed. Running the official Ollama Windows installer script...' -ForegroundColor Yellow
-  $installer=(Invoke-WebRequest -UseBasicParsing -Uri 'https://ollama.com/install.ps1').Content
+  $response=Invoke-WebRequest -UseBasicParsing -Uri 'https://ollama.com/install.ps1'
+  $installer=if($response.Content -is [byte[]]){[Text.Encoding]::UTF8.GetString($response.Content)}else{[string]$response.Content}
   if([string]::IsNullOrWhiteSpace($installer)){throw 'Official Ollama installer script could not be downloaded.'}
-  Invoke-Expression $installer
-  Start-Sleep -Seconds 2
-  $ollama=Resolve-OllamaExe
+  & ([ScriptBlock]::Create($installer))
+  if($LASTEXITCODE -and $LASTEXITCODE -ne 0){throw ('Official Ollama installer failed with exit code '+$LASTEXITCODE)}
+  for($i=0;$i -lt 20 -and !$ollama;$i++){
+    Start-Sleep -Milliseconds 750
+    $ollama=Resolve-OllamaExe
+  }
 }
 
 if(!$ollama){
