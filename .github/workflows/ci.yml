@@ -21,3 +21,18 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+  native-compile:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Windows native tray and floating panel
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $csc="$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          Add-Type -AssemblyName System.Speech
+          $speechAssembly=[System.Speech.Recognition.SpeechRecognitionEngine].Assembly.Location
+          & $csc /nologo /target:winexe /main:LuciferNative.Program /platform:x64 /optimize+ /out:lucifer-ci.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll ("/r:"+$speechAssembly) /r:System.Web.Extensions.dll /r:System.Core.dll /r:System.Security.dll companion/native/Audio.cs companion/native/BrandIcon.cs companion/native/Diagnostics.cs companion/native/AssemblyInfo.cs companion/native/Overlay.cs companion/native/Tray.cs
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
