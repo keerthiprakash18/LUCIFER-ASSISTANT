@@ -3,17 +3,16 @@ import type { AppState } from './App';
 import { api } from './api';
 
 type Props = { data: AppState; act: (work: () => Promise<unknown>) => Promise<void> };
-type Provider = 'gemini' | 'openai' | 'ollama' | 'freellmapi' | 'custom';
+type Provider = 'openai' | 'ollama' | 'freellmapi' | 'custom';
 type Protocol = 'responses' | 'gemini_generate_content' | 'ollama_chat' | 'chat_completions';
 type Draft = { model: string; baseUrl: string; apiKey: string; protocol: Protocol; customName?: string; windowsBridge?: boolean; freeRouteAllowed?: boolean; ownerManagedRoute?: boolean };
 const defaults: Record<Provider, Draft> = {
-  gemini: { model: 'gemini-3.8-flash', baseUrl: 'https://generativelanguage.googleapis.com', apiKey: '', protocol: 'gemini_generate_content' },
+  custom: { model: 'nvidia/nemotron-3.5-lightning-30b-a3b', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '', protocol: 'chat_completions', customName: 'NVIDIA Build', ownerManagedRoute: false, windowsBridge: false },
   openai: { model: '', baseUrl: 'https://api.openai.com/v1', apiKey: '', protocol: 'responses' },
   ollama: { model: 'qwen2.5:1.5b', baseUrl: 'http://127.0.0.1:11434', apiKey: '', protocol: 'ollama_chat', windowsBridge: true },
   freellmapi: { model: '', baseUrl: 'http://127.0.0.1:31415/v1', apiKey: '', protocol: 'chat_completions', windowsBridge: true, freeRouteAllowed: false },
-  custom: { model: '', baseUrl: '', apiKey: '', protocol: 'chat_completions', customName: 'My provider', ownerManagedRoute: false, windowsBridge: false },
 };
-const isProvider = (value: unknown): value is Provider => value === 'gemini' || value === 'openai' || value === 'ollama' || value === 'freellmapi' || value === 'custom';
+const isProvider = (value: unknown): value is Provider => value === 'openai' || value === 'ollama' || value === 'freellmapi' || value === 'custom';
 const statuses = ['awaiting_configuration', 'configured_unverified', 'connected', 'connection_failed', 'disconnected', 'unsupported'];
 
 export function AIProviderPanel({ data, act }: Props) {
@@ -36,7 +35,7 @@ export function AIProviderPanel({ data, act }: Props) {
 
 function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
   const ai = data.ai;
-  const [provider, setProvider] = useState<Provider>(isProvider(ai?.provider) ? ai.provider : 'gemini');
+  const [provider, setProvider] = useState<Provider>(isProvider(ai?.provider) ? ai.provider : 'custom');
   const [drafts, setDrafts] = useState<Record<Provider, Draft>>(() => {
     const values = structuredClone(defaults);
     const selected: unknown = ai?.provider;
@@ -126,8 +125,7 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
     <p>Pick a preset or add a custom OpenAI-compatible endpoint. API keys are encrypted in LUCIFER's server vault and are never returned to the browser.</p>
 
     <label>Provider<select aria-label="Provider" value={provider} disabled={pending} onChange={e => { setProvider(e.target.value as Provider); setModels([]); setResult(null); }}>
-      <option value="gemini">Google Gemini</option>
-      <option value="custom">Custom provider</option>
+      <option value="custom">NVIDIA Build / Custom provider</option>
       <option value="freellmapi">FreeLLMAPI gateway</option>
       <option value="ollama">Ollama · local</option>
       <option value="openai">OpenAI Responses</option>
@@ -144,7 +142,6 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
 
     {provider !== 'ollama' && <label>API key<input name="apiKey" type="password" autoComplete="new-password" maxLength={500} value={draft.apiKey} disabled={pending} onChange={e => update('apiKey', e.target.value)} placeholder={ai?.provider === provider && ai?.credentialSource !== 'none' ? 'Leave blank to keep saved encrypted key' : provider === 'custom' ? 'Optional if your endpoint needs no key' : 'Paste the provider key privately here'} /><small>Never paste credentials into chat or source code.</small></label>}
 
-    {provider === 'gemini' && <p className="hint">Recommended model: <code>gemini-3.8-flash</code>. Temporary 5xx failures use bounded retry; invalid keys and quota errors are not silently bypassed.</p>}
     {provider === 'ollama' && <><label className="check"><input type="checkbox" checked={!!draft.windowsBridge} disabled={pending} onChange={e => update('windowsBridge', e.target.checked)} />Bridge the WSL production backend to Windows Ollama</label><p className="hint">Recommended lightweight fallback: <code>qwen2.5:1.5b</code>. The explicit test checks localhost reachability, the exact installed model, and a harmless structured tool call before marking it Connected.</p></>}
 
     {provider === 'freellmapi' && <div className="notice">
@@ -167,7 +164,7 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
       <summary>Advanced routing and fallback</summary>
       {routing && <fieldset><legend>Optional fallback · one bounded switch</legend>
         <label className="check"><input type="checkbox" checked={routing.fallbackEnabled} onChange={e => setRouting({ ...routing, fallbackEnabled: e.target.checked })} />Enable one configured fallback after quota/service failure</label>
-        <label>Fallback route<select value={routing.fallback} onChange={e => setRouting({ ...routing, fallback: e.target.value })}><option value="gemini">Saved Gemini</option><option value="custom">Saved custom provider</option><option value="freellmapi">Saved free gateway route</option><option value="ollama">Local Ollama</option></select></label>
+        <label>Fallback route<select value={routing.fallback} onChange={e => setRouting({ ...routing, fallback: e.target.value })}><option value="ollama">Local Ollama</option><option value="custom">Saved NVIDIA/custom provider</option><option value="freellmapi">Saved free gateway route</option></select></label>
         <button type="button" onClick={() => void act(() => api('/integrations/model/routing', 'PUT', { fallbackEnabled: routing.fallbackEnabled, fallback: routing.fallback }))}>Save fallback preference</button>
         <small>Fallback must already be configured and verified. Completed side effects are never replayed.</small>
       </fieldset>}
