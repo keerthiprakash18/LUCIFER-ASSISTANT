@@ -9,7 +9,7 @@ type Draft = { model: string; baseUrl: string; apiKey: string; protocol: Protoco
 const defaults: Record<Provider, Draft> = {
   gemini: { model: 'gemini-3.8-flash', baseUrl: 'https://generativelanguage.googleapis.com', apiKey: '', protocol: 'gemini_generate_content' },
   openai: { model: '', baseUrl: 'https://api.openai.com/v1', apiKey: '', protocol: 'responses' },
-  ollama: { model: 'gemma3:1b', baseUrl: 'http://127.0.0.1:11434', apiKey: '', protocol: 'ollama_chat' },
+  ollama: { model: 'qwen2.5:1.5b', baseUrl: 'http://127.0.0.1:11434', apiKey: '', protocol: 'ollama_chat' },
   freellmapi: { model: '', baseUrl: 'http://127.0.0.1:31415/v1', apiKey: '', protocol: 'chat_completions', windowsBridge: true, freeRouteAllowed: false },
   custom: { model: '', baseUrl: '', apiKey: '', protocol: 'chat_completions', customName: 'My provider', ownerManagedRoute: false, windowsBridge: false },
 };
@@ -145,7 +145,7 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
     {provider !== 'ollama' && <label>API key<input name="apiKey" type="password" autoComplete="new-password" maxLength={500} value={draft.apiKey} disabled={pending} onChange={e => update('apiKey', e.target.value)} placeholder={ai?.provider === provider && ai?.credentialSource !== 'none' ? 'Leave blank to keep saved encrypted key' : provider === 'custom' ? 'Optional if your endpoint needs no key' : 'Paste the provider key privately here'} /><small>Never paste credentials into chat or source code.</small></label>}
 
     {provider === 'gemini' && <p className="hint">Recommended model: <code>gemini-3.8-flash</code>. Temporary 5xx failures use bounded retry; invalid keys and quota errors are not silently bypassed.</p>}
-    {provider === 'ollama' && <p className="hint">Localhost only. The test checks reachability and the exact installed model.</p>}
+    {provider === 'ollama' && <p className="hint">Recommended lightweight fallback: <code>qwen2.5:1.5b</code>. The explicit test checks localhost reachability, the exact installed model, and a harmless structured tool call before marking it Connected.</p>}
 
     {provider === 'freellmapi' && <div className="notice">
       <label className="check"><input type="checkbox" checked={!!draft.windowsBridge} disabled={pending} onChange={e => update('windowsBridge', e.target.checked)} />Bridge WSL to the Windows loopback gateway</label>
