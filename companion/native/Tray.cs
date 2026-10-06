@@ -82,9 +82,33 @@ namespace LuciferNative {
     void StartPython(){try{modelReady=false;python=Child(C("python"),"-X utf8 -u \""+Path.Combine(root,"companion","native","speech_worker.py")+"\"",PythonLine);}catch{error="Local transcription runtime failed to start. Run native setup again.";}}
     void StartWorker(){try{connected=false;worker=Child(C("node"),"\""+Path.Combine(dir,"companion-worker.cjs")+"\"",WorkerLine);}catch{error="Windows companion could not start.";}}
     void EnsureBackend(){lastBackend=DateTime.UtcNow;Task.Run(delegate{try{using(var web=new System.Net.WebClient()){web.DownloadString("http://127.0.0.1:3001/api/health");return;}}catch{}if(Alive(backend))return;try{var info=new ProcessStartInfo("wsl.exe","-d "+C("distribution")+" --cd \""+C("wslRoot")+"\" -- bash .local/native/start-backend.sh"){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};backend=Process.Start(info);backend.OutputDataReceived+=delegate{};backend.ErrorDataReceived+=delegate{};backend.BeginOutputReadLine();backend.BeginErrorReadLine();}catch{Ui(delegate{error="Production backend startup failed. Check WSL readiness in native diagnostics.";});}});}
-    void StartMicrophone(){if(paused||closing||microphone!=null)return;try{microphone=new AudioInput(micDevice);microphone.Frame+=Audio;error="";phase="Wake";voiceEvent="Local utterance wake detector ready";lastAudio=DateTime.UtcNow;}catch(Exception e){error=e.Message;CloseMicrophone();retryAt=DateTime.UtcNow.AddSeconds(10);}}
+    void StartMicrophone(){if(paused||closing||microphone!=null)return;try{microphone=new AudioInput(micDevice);microphone.Frame+=Audio;StartFastWakeRecognizer();error="";phase="Wake";voiceEvent=recognition!=null?"Fast local Lucifer wake detector ready · Whisper fallback active":"Local Whisper wake detector ready";lastAudio=DateTime.UtcNow;}catch(Exception e){error=e.Message;CloseMicrophone();retryAt=DateTime.UtcNow.AddSeconds(10);}}
+    void StartFastWakeRecognizer(){
+      try{
+        var installed=SpeechRecognitionEngine.InstalledRecognizers();
+        var info=installed.FirstOrDefault(r=>r.Culture.Name.StartsWith("en",StringComparison.OrdinalIgnoreCase))??installed.FirstOrDefault();
+        if(info==null)return;
+        stream=new PcmStream();recognition=new SpeechRecognitionEngine(info);
+        var choices=new Choices(new string[]{"Lucifer","Hey Lucifer","Lucyfer","Lusifer"});
+        var builder=new GrammarBuilder(choices);builder.Culture=info.Culture;
+        recognition.LoadGrammar(new Grammar(builder));recognition.SpeechRecognized+=FastWakeRecognized;
+        recognition.SetInputToAudioStream(stream,new SpeechAudioFormatInfo(16000,AudioBitsPerSample.Sixteen,AudioChannel.Mono));
+        recognition.RecognizeAsync(RecognizeMode.Multiple);
+      }catch{try{if(recognition!=null)recognition.Dispose();}catch{}recognition=null;try{if(stream!=null)stream.Dispose();}catch{}stream=null;}
+    }
+    void FastWakeRecognized(object sender,SpeechRecognizedEventArgs e){
+      if(e.Result==null||e.Result.Confidence<0.38f)return;
+      Ui(delegate{
+        if(closing||paused||speaking||ackSpeaking||calibrating||phase!="Wake")return;
+        wakeHits++;wakePending=false;wakeCollecting=false;wakeJobId=++recordingId;
+        lock(audioLock){wakeAudio.Clear();}
+        lastTranscript=e.Result.Text;voiceEvent="Fast local wake accepted · "+e.Result.Text;
+        NativeLog.Write(root,"tray","wake.fast.accepted",new {text=e.Result.Text,confidence=e.Result.Confidence});
+        overlay.ShowWakeScene();Acknowledge(delegate{BeginCapture(true);speechStarted=false;voiceEvent="Wake accepted; give your instruction";});
+      });
+    }
     void CloseMicrophone(){if(microphone!=null){microphone.Dispose();microphone=null;}if(stream!=null){stream.Dispose();stream=null;}if(recognition!=null){try{recognition.RecognizeAsyncCancel();recognition.Dispose();}catch{}recognition=null;}lock(audioLock){ring.Clear();ringBytes=0;captured.Clear();}}
-    void Audio(byte[] data,double level){lastAudio=DateTime.UtcNow;rms=level;peak=Math.Max(peak,level);lock(audioLock){ring.Enqueue(data);ringBytes+=data.Length;while(ringBytes>64000){ringBytes-=ring.Dequeue().Length;}double gate=Math.Max(80,Math.Min(250,threshold*0.5));if(phase=="Wake"&&!paused&&!speaking&&!calibrating&&!wakePending&&modelReady){if(!wakeCollecting&&level>=gate){wakeCollecting=true;wakeStarted=lastWakeVoice=DateTime.UtcNow;wakeAudio.Clear();wakeAudio.AddRange(ring.ToArray());}else if(wakeCollecting)wakeAudio.Add(data);if(wakeCollecting&&level>=gate)lastWakeVoice=DateTime.UtcNow;}if(phase=="Capture"||(calibrating&&calibrationId==0)){captured.Add(data);if(level>=gate){speechStarted=true;lastVoice=DateTime.UtcNow;}}}}
+    void Audio(byte[] data,double level){lastAudio=DateTime.UtcNow;rms=level;peak=Math.Max(peak,level);try{if(stream!=null)stream.Push(data);}catch{}lock(audioLock){ring.Enqueue(data);ringBytes+=data.Length;while(ringBytes>64000){ringBytes-=ring.Dequeue().Length;}double gate=Math.Max(80,Math.Min(250,threshold*0.5));if(phase=="Wake"&&!paused&&!speaking&&!calibrating&&!wakePending&&modelReady){if(!wakeCollecting&&level>=gate){wakeCollecting=true;wakeStarted=lastWakeVoice=DateTime.UtcNow;wakeAudio.Clear();wakeAudio.AddRange(ring.ToArray());}else if(wakeCollecting)wakeAudio.Add(data);if(wakeCollecting&&level>=gate)lastWakeVoice=DateTime.UtcNow;}if(phase=="Capture"||(calibrating&&calibrationId==0)){captured.Add(data);if(level>=gate){speechStarted=true;lastVoice=DateTime.UtcNow;}}}}
     void FinishWake(){byte[] data;lock(audioLock){data=wakeAudio.SelectMany(x=>x).ToArray();wakeAudio.Clear();wakeCollecting=false;}if(data.Length<6400)return;wakePending=true;voiceEvent="Checking a local utterance for Lucifer; ambient text is not sent";wakeJobId=++recordingId;wakeAudioPath=Path.Combine(dir,"audio",Guid.NewGuid().ToString("N")+".wav");AudioInput.SaveWav(wakeAudioPath,data);NativeLog.Write(root,"tray","wake.submitted",new {milliseconds=data.Length/32});Send(python,new {id=wakeJobId,path=wakeAudioPath,language="auto",mode="wake"});}
     void Cue(){voiceEvent="Wake accepted";Task.Run(delegate{try{string file=Path.Combine(dir,"audio","cue.wav");if(!File.Exists(file)){byte[] pcm=new byte[6400];for(int i=0;i<pcm.Length/2;i++){short sample=(short)(Math.Sin(i*2*Math.PI*880/16000)*4500*Math.Sin(Math.PI*i/(pcm.Length/2)));pcm[i*2]=(byte)sample;pcm[i*2+1]=(byte)(sample>>8);}AudioInput.SaveWav(file,pcm);}using(var sound=new SoundPlayer(file))sound.PlaySync();}catch{Ui(delegate{error="Wake cue playback failed. Use Test speaker.";});}});}
     void Acknowledge(Action next){if(closing)return;phase="Acknowledging";ackSpeaking=true;voiceEvent="Wake accepted · local Yes boss acknowledgement";overlay.ShowWakeScene();acknowledgementNext=next;try{if(!String.IsNullOrWhiteSpace(voiceName))ackSynth.SelectVoice(voiceName);ackSynth.SpeakAsync("Yes boss");}catch{acknowledgementNext=null;ackSpeaking=false;error="Local Yes boss playback failed. Use Test speaker.";if(next!=null)next();}}
