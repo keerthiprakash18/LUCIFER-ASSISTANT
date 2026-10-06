@@ -1,0 +1,6 @@
+import {Store} from '../server/store.js';
+import {AIConfigService} from '../server/ai-config.js';
+import {config} from '../server/config.js';
+import {requestGemini,readGeminiResponse} from '../server/gemini-response.js';
+const store=new Store(config.dataDir),ai=new AIConfigService(store,config.dataDir);
+const selected=await ai.resolve();try{if(selected?.provider!=='gemini')throw new Error('Diagnostic requires the existing selected Gemini configuration');const textOnly=process.argv.includes('--text-only');const result=await requestGemini(selected,{contents:textOnly?'Reply with exactly: LUCIFER text transport check.':'Call current_time once to inspect the actual time. Do not guess.',config:{maxOutputTokens:2048,...(textOnly?{}:{tools:[{functionDeclarations:[{name:'current_time',description:'Read the actual system clock'}]}]})}},{timeoutMs:30000});const answer=readGeminiResponse(result.response,result.diagnostics);ai.runtimeSuccess(selected);console.log(JSON.stringify({mode:textOnly?'text-only':'minimal-tool',diagnostics:answer.diagnostics,toolNames:answer.calls.map(call=>call.name),visibleText:!!answer.text}));}catch(error){ai.runtimeFailure(selected,error);const value=error as any;console.log(JSON.stringify({code:value.code,diagnostics:value.diagnostics,message:value.message}));}finally{store.close();}

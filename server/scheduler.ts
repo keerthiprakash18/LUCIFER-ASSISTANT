@@ -1,0 +1,24 @@
+import {z} from 'zod';
+import type {FastifyInstance} from 'fastify';
+import {Store,id,now} from './store.js';
+import {reminderSchema,type Reminder,type Settings} from '../shared/contracts.js';
+import {Telegram,DeliveryError} from './telegram.js';
+function localParts(date:Date,timezone:string){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);const get=(key:string)=>parts.find(p=>p.type===key)!.value;return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;}
+export function localToISO(local:string,timezone:string){if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local))throw new Error('Use an explicit local date and time');let candidate=Date.parse(local+'Z');if(!Number.isFinite(candidate)||new Date(candidate).toISOString().slice(0,16)!==local)throw new Error('Invalid local date and time');for(let n=0;n<4;n++){const observed=Date.parse(localParts(new Date(candidate),timezone)+'Z');candidate+=Date.parse(local+'Z')-observed;}if(localParts(new Date(candidate),timezone)!==local)throw new Error('This local time does not exist in the selected timezone');if([-3600000,3600000].some(delta=>localParts(new Date(candidate+delta),timezone)===local))throw new Error('This timezone time is ambiguous. Choose a time outside the daylight-saving transition.');return new Date(candidate).toISOString();}
+function nextTime(reminder:Reminder,after:number){const local=localParts(new Date(reminder.at),reminder.timezone);let d=new Date(local+'Z');for(let n=0;n<4000;n++){d=new Date(d.getTime()+(reminder.recurrence==='weekly'?7:1)*86400000);const at=localToISO(d.toISOString().slice(0,16),reminder.timezone);if(Date.parse(at)>after)return at;}throw new Error('Recurring reminder is too stale. Edit the schedule.');}
+export class Scheduler {
+ busy=false;timer:ReturnType<typeof setInterval>|undefined;
+ constructor(public store:Store,public telegram:Telegram,public settings:()=>Settings){}
+ start(){this.timer=setInterval(()=>{void this.tick();},1000);this.timer.unref();void this.tick();}
+ stop(){clearInterval(this.timer);}
+ async tick(time=Date.now()){if(this.busy||!this.settings().permissions.reminders||this.store.get<{stopped:boolean}>('control','emergency')?.stopped)return;this.busy=true;
+  try{for(const r of this.store.list<Reminder>('reminder')){if(r.status!=='scheduled'||Date.parse(r.at)>time)continue;if(!this.settings().permissions.reminders||this.store.get<{stopped:boolean}>('control','emergency')?.stopped)break;const occurrence=r.id+':'+r.at;try{let receipt:unknown;
+   if(r.channel==='in_app'){this.store.db.exec('BEGIN IMMEDIATE');try{if(!this.store.get('notification',occurrence))this.store.put('notification',{id:occurrence,text:r.title,createdAt:now(),scheduledAt:r.at,timezone:r.timezone,missed:time-Date.parse(r.at)>60000});receipt={inAppNotification:occurrence};this.advance(r,time);this.store.db.exec('COMMIT');}catch(e){this.store.db.exec('ROLLBACK');throw e;}}
+   else{receipt=await this.telegram.send('reminder:'+occurrence,'sendMessage',{text:`LUCIFER reminder: ${r.title}\nScheduled ${localParts(new Date(r.at),r.timezone)} · ${r.timezone}`});this.advance(r,time);}
+   this.store.put('occurrence',{id:occurrence,deliveredAt:now(),receipt});
+  }catch(e){this.store.put('reminder',{...r,status:e instanceof DeliveryError&&e.uncertain?'uncertain':'failed',lastError:(e as Error).message});}}}finally{this.busy=false;}
+ }
+ advance(r:Reminder,time:number){const current=this.store.get<Reminder>('reminder',r.id);if(current?.status!=='scheduled'||current.at!==r.at)return;this.store.put('reminder',{...r,status:r.recurrence==='none'?'delivered':'scheduled',at:r.recurrence==='none'?r.at:nextTime(r,time),lastError:undefined});}
+ save(body:unknown,reminderId:string=id()) {if(!this.settings().permissions.reminders)throw new Error('Reminder permission is disabled');if(this.store.get<{stopped:boolean}>('control','emergency')?.stopped)throw new Error('Emergency stop is active');const input=reminderSchema.omit({at:true}).extend({localTime:z.string()}).strict().parse(body);const at=localToISO(input.localTime,input.timezone);if(Date.parse(at)<=Date.now())throw new Error('Select a future date and time');if(input.channel==='telegram')this.telegram.enabled();const {localTime:_,...fields}=input;return this.store.put('reminder',{id:reminderId,...fields,at,status:'scheduled'} as Reminder);}
+ register(app:FastifyInstance){app.post('/api/reminders',async(req)=>this.save(req.body));app.put('/api/reminders/:id',async(req)=>this.save(req.body,(req.params as {id:string}).id));app.delete('/api/reminders/:id',async(req)=>{const r=this.store.get<Reminder>('reminder',(req.params as {id:string}).id);if(r)this.store.put('reminder',{...r,status:'cancelled'});return {ok:true};});}
+}

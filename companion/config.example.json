@@ -1,0 +1,12 @@
+{
+  "server": "https://your-private-lucifer-host.example",
+  "name": "My Windows laptop",
+  "apps": {
+    "vscode": { "executable": "C:\\Users\\YOUR_NAME\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe", "args": [] },
+    "notepad": { "executable": "C:\\Windows\\System32\\notepad.exe", "args": [] }
+  },
+  "folders": { "selected-project": "C:\\Users\\YOUR_NAME\\Music\\LUCIFER-ASSISTANT\\approved-work" },
+  "websites": ["https://code.visualstudio.com"],
+  "commands": {},
+  "actions": ["open_app", "open_website", "open_project", "read_file", "write_document", "move_file", "run_command"]
+}

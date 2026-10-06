@@ -1,0 +1,30 @@
+.proposal-section { max-width: 900px; margin: 24px auto; }
+.panel-heading > span { font-size: 12px; }
+.mini-row strong, .integration-row strong { font-size: 12px; }
+.mini-row small, .integration-row small, .empty small { font-size: 10px; }
+.suggestions button { font-size: 11px; }
+.assistant-center > p { font-size: 12px; }
+.status { font-size: 10px; }
+.provider-note, .composer-toolbar span, footer { font-size: 9px; }
+.message p { font-size: 13px; }
+.list-card .primary { color: #fff; }
+.page-content pre { max-width: 100%; }
+.page-content a { color: var(--accent); }
+.setup-card { border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 16px; display: grid; gap: 13px; margin-top: 10px; }
+.setup-card h4 { margin: 0; font-size: 14px; font-weight: 600; }
+.setup-card p { font-size: 11px; line-height: 1.7; margin: 0; }
+.success { color: #347b5b; }
+.render-recovery { padding: 24px; margin: 20px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; }
+.setup-card, .form-panel { min-width: 0; }
+.setup-card .row-actions { flex-wrap: wrap; }
+.setup-card [role=status] { overflow-wrap: anywhere; }
+.page-content h3, .notice, .banner { overflow-wrap: anywhere; }
+.preview-grid img { background: #fff; }
+@media (max-width: 720px) {
+  nav button, .row-actions button, .row-actions a { min-height: 44px; }
+  .composer .icon-button { min-width: 40px; min-height: 44px; }
+  .send-button { width: 44px; height: 44px; }
+  .composer-toolbar span { display: none; }
+  .mini-row strong { font-size: 13px; }
+  .status, .integration-row small, .empty small { font-size: 11px; }
+}

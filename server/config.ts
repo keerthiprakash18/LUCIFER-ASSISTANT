@@ -1,0 +1,11 @@
+import 'dotenv/config';
+import path from 'node:path';
+import { existsSync } from 'node:fs';
+export const root = process.cwd();
+export const dataDir = path.resolve(root, process.env.DATA_DIR || '.local');
+if (!dataDir.startsWith(root + path.sep)) throw new Error('DATA_DIR must be inside this project');
+process.env.PLAYWRIGHT_BROWSERS_PATH ||= path.join(dataDir,'browsers');
+const localBrowserLibs=path.join(root,'.local/browser-libs/usr/lib/x86_64-linux-gnu');
+if(process.platform==='linux'&&existsSync(localBrowserLibs))process.env.LD_LIBRARY_PATH=[localBrowserLibs,process.env.LD_LIBRARY_PATH].filter(Boolean).join(':');
+export const config = { root, dataDir, provider:process.env.MODEL_PROVIDER||'gemini', port:Number(process.env.PORT||3001), host:process.env.HOST||'127.0.0.1', origin:process.env.PUBLIC_ORIGIN||'http://localhost:5173', secure:process.env.COOKIE_SECURE==='true', model:process.env.OPENAI_MODEL||'', apiKey:process.env.OPENAI_API_KEY||'', baseUrl:process.env.OPENAI_BASE_URL||'https://api.openai.com/v1', geminiApiKey:process.env.GEMINI_API_KEY||'', geminiModel:process.env.GEMINI_MODEL||'', ollamaModel:process.env.OLLAMA_MODEL||'', ollamaBaseUrl:process.env.OLLAMA_BASE_URL||'http://127.0.0.1:11434', telegramToken:process.env.TELEGRAM_BOT_TOKEN||'', webSearch:process.env.ENABLE_WEB_SEARCH==='true' };
+if (config.host !== '127.0.0.1' && config.host !== 'localhost' && (!config.secure || !config.origin.startsWith('https://'))) throw new Error('Remote hosting requires PUBLIC_ORIGIN=https://… and COOKIE_SECURE=true behind a TLS reverse proxy');

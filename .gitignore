@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.local/
+test-results/
+playwright-report/
+*.log
+*.db
+*.db-*
+companion/config.json
+companion/credential.bin
+companion/receipts.json
