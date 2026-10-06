@@ -46,7 +46,7 @@ function defaults(provider: ProviderName) {
   if (provider === 'gemini') return { protocol: 'gemini_generate_content' as const, model: config.geminiModel || 'gemini-3.8-flash', baseUrl: 'https://generativelanguage.googleapis.com', envKey: config.geminiApiKey };
   if(provider==='freellmapi')return {protocol:'chat_completions' as const,model:'',baseUrl:'http://127.0.0.1:31415/v1',envKey:''};
   if(provider==='custom')return {protocol:'chat_completions' as const,model:'',baseUrl:'',envKey:''};
-  return { protocol: 'ollama_chat' as const, model: config.ollamaModel || 'gemma3:1b', baseUrl: config.ollamaBaseUrl, envKey: '' };
+  return { protocol: 'ollama_chat' as const, model: config.ollamaModel || 'qwen2.5:1.5b', baseUrl: config.ollamaBaseUrl, envKey: '' };
 }
 const quotaNote = (provider: ProviderName) => provider === 'gemini' ? 'Google AI Studio quotas vary by model, project, region, and account.' : provider === 'ollama' ? 'Local inference uses laptop resources. No model is downloaded automatically.' : provider==='freellmapi'?'Only explicitly enabled free gateway routes are permitted; quotas and tool support depend on the upstream model. No unlimited usage claim.':provider==='custom'?'Custom route terms, quotas and billing are controlled by the endpoint you configured. LUCIFER never invents or silently upgrades this route.':'Legacy OpenAI Responses configuration is retained.';
 
