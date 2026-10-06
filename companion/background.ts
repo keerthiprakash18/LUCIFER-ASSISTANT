@@ -34,8 +34,8 @@ lines.on('line',line=>{void(async()=>{try{const input=JSON.parse(line);if(input.
     const controller=voice=new AbortController();
     try{
       const turn=await request('voice/turn',{text:String(input.text).slice(0,12000),language:input.replyLanguage||'auto'},controller.signal);
-      const deadline=Date.now()+120000;
-      while(Date.now()<deadline){controller.signal.throwIfAborted();const result=await request('voice/result',{taskId:turn.taskId},controller.signal);if(['completed','failed','cancelled','partially_completed','awaiting_authorization','awaiting_input'].includes(result.state)){emit({kind:'reply',id:input.id,taskId:turn.taskId,state:result.state,reply:result.reply,error:result.error||(['failed','cancelled'].includes(result.state)?'The action did not complete.':undefined)});return;}await new Promise(r=>setTimeout(r,250));}
+      const deadline=Date.now()+120000;let observedState='';emit({kind:'progress',id:input.id,taskId:turn.taskId,state:'accepted',detail:'Backend accepted the activated instruction.'});
+      while(Date.now()<deadline){controller.signal.throwIfAborted();const result=await request('voice/result',{taskId:turn.taskId},controller.signal);if(result.state&&result.state!==observedState){observedState=result.state;emit({kind:'progress',id:input.id,taskId:turn.taskId,state:result.state,detail:'Backend task state: '+result.state.replaceAll('_',' ')});}if(['completed','failed','cancelled','partially_completed','awaiting_authorization','awaiting_input'].includes(result.state)){emit({kind:'reply',id:input.id,taskId:turn.taskId,state:result.state,reply:result.reply,error:result.error||(['failed','cancelled'].includes(result.state)?'The action did not complete.':undefined)});return;}await new Promise(r=>setTimeout(r,250));}
       await stop();emit({kind:'reply',id:input.id,error:'Timed out waiting for a confirmed result. Completion is not assumed.'});
     }catch(error){if(controller.signal.aborted)await request('voice/stop',{}).catch(()=>{});emit({kind:'reply',id:input.id,error:controller.signal.aborted?'Stopped.':redact((error as Error).message)});}finally{if(voice===controller)voice=undefined;}
   }
