@@ -136,7 +136,7 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
     {provider === 'custom' && <label>Provider name<input name="customName" required maxLength={60} value={draft.customName || ''} disabled={pending} onChange={e => update('customName', e.target.value)} placeholder="Example: OpenRouter, LM Studio, My Gateway" /></label>}
 
     <label>API protocol<select aria-label="API protocol" value={draft.protocol} disabled={pending || provider !== 'custom'} onChange={e => update('protocol', e.target.value)}>
-      {provider === 'custom' ? <><option value="chat_completions">OpenAI-compatible Chat Completions</option><option value="responses">OpenAI-compatible Responses</option></> : <option value={draft.protocol}>{draft.protocol}</option>}
+      {provider === 'custom' ? <><option value="gemini_generate_content">Native Gemini · GenerateContent</option><option value="chat_completions">OpenAI-compatible Chat Completions</option><option value="responses">OpenAI-compatible Responses</option></> : <option value={draft.protocol}>{draft.protocol}</option>}
     </select></label>
 
     <label>Model<input name="model" required maxLength={120} value={draft.model} disabled={pending} onChange={e => update('model', e.target.value)} placeholder={provider === 'custom' ? 'Exact model ID required by your provider' : undefined} /></label>
@@ -156,7 +156,8 @@ function AISetup({ data, act, onClose }: Props & { onClose: () => void }) {
     {provider === 'custom' && <div className="notice">
       <label className="check"><input type="checkbox" required checked={!!draft.ownerManagedRoute} disabled={pending} onChange={e => update('ownerManagedRoute', e.target.checked)} />I configured this endpoint and accept its quota/billing policy</label>
       {localEndpoint && <label className="check"><input type="checkbox" checked={!!draft.windowsBridge} disabled={pending} onChange={e => update('windowsBridge', e.target.checked)} />Endpoint runs on Windows localhost; bridge it from the WSL backend</label>}
-      <div className="row-actions"><button type="button" disabled={pending || !draft.baseUrl} onClick={() => void discover()}>Discover models</button></div>
+      {draft.protocol !== 'gemini_generate_content' && <div className="row-actions"><button type="button" disabled={pending || !draft.baseUrl} onClick={() => void discover()}>Discover models</button></div>}
+      {draft.protocol === 'gemini_generate_content' && <small>For Google Gemini direct API use <code>https://generativelanguage.googleapis.com</code> with an exact Gemini model ID such as <code>gemini-3.8-flash</code>.</small>}
       <small>Save + test verifies a harmless structured function call. LUCIFER only marks the custom provider connected when assistant tools are actually compatible.</small>
     </div>}
 
