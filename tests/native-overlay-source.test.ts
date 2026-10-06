@@ -32,4 +32,8 @@ test('native desktop panel is wired to the real wake and task pipeline',async()=
   assert.match(speech,/lucyfer\|lusifer\|lousifer\|loosefer\|loocifer/,'wake matcher must tolerate common Lucifer transcriptions');
   assert.match(speech,/edit_distance\(token, "lucifer"\) <= 2/,'wake matcher must include bounded local fuzzy matching');
   assert.match(speech,/லூசிபர்\|லூசிஃபர்/,'wake matcher must retain Tamil wake spellings');
+  assert.match(tray,/StartFastWakeRecognizer\(\)/,'single-word wake must use an instant local recognizer before Whisper fallback');
+  assert.match(tray,/new Choices\(new string\[\]\{"Lucifer","Hey Lucifer","Lucyfer","Lusifer"\}\)/,'fast wake grammar must include common Lucifer pronunciations');
+  assert.match(tray,/e\.Result\.Confidence<0\.38f/,'fast wake recognizer must keep an explicit confidence floor');
+  assert.match(tray,/stream\.Push\(data\)/,'the same local microphone PCM must feed the fast wake recognizer');
 });
