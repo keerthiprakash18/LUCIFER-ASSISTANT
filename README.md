@@ -86,6 +86,12 @@ An AI tool can read attached files, obtain the actual time, discover devices, cr
 
 The default for a new workspace is **NVIDIA Build / an owner-managed OpenAI-compatible Chat Completions endpoint**. The recommended NVIDIA model is `nvidia/nemotron-3.5-lightning-30b-a3b`. The setup form also supports the existing **OpenAI Responses** adapter and optional **local Ollama** through the official `ollama` client. The selected provider is stored as metadata; credentials remain server-side and encrypted. Fallback is explicit and bounded.
 
+### NVIDIA Smart Model Pool
+
+When NVIDIA Build is the selected Custom provider, **Sync NVIDIA model pool** reads the provider's `/models` catalog and stores every reported model ID locally. LUCIFER classifies the catalog into agent, reasoning, vision, translation, embedding and specialist groups. The catalog is not treated as one interchangeable chat list: general assistant execution only rotates among agent/reasoning candidates. A transient `429`, timeout or `5xx` cools the failing model and moves the same task to another healthy NVIDIA agent candidate, with a bounded maximum of four NVIDIA attempts before the separately configured Ollama fallback can be considered. Completed tool side effects keep their receipts and are not replayed during model failover.
+
+Vision, embedding, translation, pose/tabular and other specialist models remain catalogued for capability-specific adapters rather than being called blindly through Chat Completions. This keeps the full NVIDIA catalog visible while preventing incompatible models from breaking ordinary assistant actions.
+
 The setup UI also has a **Custom provider** profile for owner-managed OpenAI-compatible endpoints. Give it a display name, choose **Chat Completions** or **Responses**, enter the exact model/base URL, and optionally store an API key in the same encrypted vault. Remote endpoints must use HTTPS; HTTP is allowed only for localhost. A Windows-loopback bridge can be enabled for a local endpoint when the production backend is running in WSL. Custom routes require an explicit owner acknowledgement of the provider's quota/billing policy. `Save and test connection` performs a harmless structured function-call check, so a custom route is not marked Connected merely because it returned HTTP 200 or plain text.
 
 ```dotenv
