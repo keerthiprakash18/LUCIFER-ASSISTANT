@@ -32,17 +32,68 @@ for line in sys.stdin:
         language = job.get("language", "auto")
         segments, info = model.transcribe(filename, language=None if language == "auto" else language,
             beam_size=1, vad_filter=True, vad_parameters={"min_silence_duration_ms": 200}, condition_on_previous_text=False,
-            initial_prompt="Lucifer. English and Tamil commands. Notepad, VS Code, Chrome, notes, reminders.")
+            initial_prompt="Wake words: Lucifer, Hey Lucifer, Lucyfer, லூசிபர், லூசிஃபர். English and Tamil commands. Notepad, VS Code, Chrome, notes, reminders.")
         segments = list(segments)
         text = " ".join(segment.text.strip() for segment in segments).strip()
-        if not segments or all(segment.no_speech_prob > 0.8 or segment.avg_logprob < -1.2 for segment in segments):
+        wake_mode = job.get("mode") == "wake"
+        if not segments:
             text = ""
-        marker = re.search(r"(?:\blucifer\b|லூசிபர்|லூசிஃபர்|லூசிஃபெர்)[\s,.:;!?…]*", text, re.IGNORECASE)
-        if job.get("mode") == "wake":
+        elif wake_mode:
+            # A one-word wake utterance is easy for Whisper to score lower than a
+            # full command. Keep the local transcript unless every segment is
+            # extremely speech-like-noise; the wake matcher below is still strict.
+            if all(segment.no_speech_prob > 0.93 and segment.avg_logprob < -1.5 for segment in segments):
+                text = ""
+        elif all(segment.no_speech_prob > 0.8 or segment.avg_logprob < -1.2 for segment in segments):
+            text = ""
+
+        exact_wake = re.compile(
+            r"(?:\b(?:hey\s+)?(?:lucifer|lucyfer|lusifer|lousifer|loosefer|loocifer)\b|"
+            r"லூசிபர்|லூசிஃபர்|லூசிஃபெர்)[\s,.:;!?…-]*",
+            re.IGNORECASE,
+        )
+
+        def edit_distance(a, b):
+            previous = list(range(len(b) + 1))
+            for i, ca in enumerate(a, 1):
+                current = [i]
+                for j, cb in enumerate(b, 1):
+                    current.append(min(current[-1] + 1, previous[j] + 1, previous[j - 1] + (ca != cb)))
+                previous = current
+            return previous[-1]
+
+        def wake_marker(value):
+            direct = exact_wake.search(value)
+            if direct and len(re.sub(r"[^a-z]", "", value[:direct.start()].lower())) <= 3:
+                return direct
+            # Whisper may render the name phonetically. Only inspect the first
+            # two lexical tokens so ambient conversation cannot trigger it later.
+            for match in list(re.finditer(r"[A-Za-z]+", value))[:3]:
+                token = match.group(0).lower()
+                if token == "hey":
+                    continue
+                if 5 <= len(token) <= 9 and edit_distance(token, "lucifer") <= 2:
+                    class FuzzyMatch:
+                        def __init__(self, start, end):
+                            self._start, self._end = start, end
+                        def start(self):
+                            return self._start
+                        def end(self):
+                            return self._end
+                    end = match.end()
+                    trailing = re.match(r"[\s,.:;!?…-]*", value[end:])
+                    if trailing:
+                        end += trailing.end()
+                    return FuzzyMatch(match.start(), end)
+            return None
+
+        marker = wake_marker(text)
+        if wake_mode:
             # Ambient transcripts never leave this local worker. Only text after
             # a locally detected wake marker may enter the action pipeline.
             print(json.dumps({"kind": "wake", "id": job["id"], "wake": bool(marker),
-                              "text": text[marker.end():].strip() if marker else ""}, ensure_ascii=False), flush=True)
+                              "text": text[marker.end():].strip() if marker else "",
+                              "heard": text[:120]}, ensure_ascii=False), flush=True)
             continue
         print(json.dumps({"kind": "transcript", "id": job["id"], "text": text,
                           "wake": bool(marker), "language": info.language, "segments": len(segments)}, ensure_ascii=False), flush=True)
