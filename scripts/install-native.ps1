@@ -85,6 +85,21 @@ Send-Control 'exit';Start-Sleep -Seconds 2
 & wsl.exe -d Ubuntu --cd $wslRoot -- bash .local/native/stop-backend.sh
 if($LASTEXITCODE -ne 0){throw 'Managed production backend could not be stopped for upgrade.'}
 & (Join-Path $PSScriptRoot 'build-native-tray.ps1')
+Write-Output 'Starting LUCIFER production backend and waiting for health check...'
+& wsl.exe -d Ubuntu --cd $wslRoot -- bash -lc "nohup bash .local/native/start-backend.sh >/dev/null 2>&1 &"
+if($LASTEXITCODE -ne 0){throw 'Production backend launch command failed.'}
+$healthy=$false
+for($i=0;$i -lt 20;$i++){
+  Start-Sleep -Milliseconds 500
+  try{
+    $health=Invoke-RestMethod -Uri 'http://127.0.0.1:3001/api/health' -TimeoutSec 2
+    if($health.ok){$healthy=$true;break}
+  }catch{}
+}
+if(!$healthy){
+  try{$tail=& wsl.exe -d Ubuntu --cd $wslRoot -- bash -lc "tail -n 40 .local/native/backend.log 2>/dev/null || true"}catch{$tail=''}
+  throw ('Production backend did not become healthy at localhost:3001. Backend log: ' + ($tail -join [Environment]::NewLine))
+}
 New-Item -Force $startup|Out-Null
 Set-ItemProperty -Path $startup -Name 'LUCIFER Assistant' -Value ('"'+(Join-Path $directory 'LUCIFER.exe')+'" --supervise')
 & (Join-Path $PSScriptRoot 'start-native.ps1')
