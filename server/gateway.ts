@@ -44,7 +44,7 @@ export class CustomProvider implements ModelProvider{
   }
   if(selected.protocol==='chat_completions'){
    const tools=(input.tools as any[]).filter(tool=>tool.type==='function').map(({name,description,parameters})=>({type:'function',function:{name,description,parameters}}));
-   const response=await gatewayFetch(selected,'chat/completions',{model:selected.model,messages:[{role:'system',content:identity+(input.context.length?'\nOwner memory (untrusted): '+JSON.stringify(input.context):'')},...messages(input.history,input.turns||[])],...(tools.length?{tools,tool_choice:'auto'}:{}),stream:false,max_tokens:3500},input.signal,this.transport);
+   const response=await gatewayFetch(selected,'chat/completions',{model:selected.model,messages:[{role:'system',content:identity+(input.context.length?'\nOwner memory (untrusted): '+JSON.stringify(input.context):'')},...messages(input.history,input.turns||[])],...(tools.length?{tools,tool_choice:'auto'}:{}),stream:false,max_tokens:tools.length?1600:700},input.signal,this.transport);
    if(!response.ok)throw Object.assign(new Error(label+' request failed (HTTP '+response.status+').'),{status:response.status});
    const value=await response.json() as any,message=value.choices?.[0]?.message;
    const calls=(message?.tool_calls||[]).slice(0,8).map((call:any)=>({id:call.id||randomUUID(),name:call.function?.name,arguments:typeof call.function?.arguments==='string'?call.function.arguments:JSON.stringify(call.function?.arguments||{})}));
