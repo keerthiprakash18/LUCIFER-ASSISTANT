@@ -22,6 +22,8 @@ export const deviceActionSchema = z.discriminatedUnion('kind', [
   z.object({kind:z.literal('observe_app'),app:z.string().min(1).max(60)}).strict(),
   z.object({kind:z.literal('open_document'),app:z.enum(['notepad','vscode']),folder:z.string().min(1).max(60),path:z.string().min(1).max(300)}).strict(),
   z.object({kind:z.literal('browser_action'),operation:z.enum(['open','observe','search','click','fill']),url:z.string().max(2048).optional(),query:z.string().max(300).optional(),reference:z.string().max(100).optional(),text:z.string().max(2000).optional()}).strict(),
+  z.object({kind:z.literal('system_control'),operation:z.enum(['volume_up','volume_down','volume_mute'])}).strict(),
+  z.object({kind:z.literal('system_info')}).strict(),
 ]);
 export type DeviceAction = z.infer<typeof deviceActionSchema>;
 export interface Capabilities { apps:string[]; folders:string[]; commands:string[]; actions:string[] }
