@@ -23,7 +23,7 @@ test('native desktop panel is wired to the real wake and task pipeline',async()=
   assert.match(build,/Overlay\.cs/,'native build must compile the real panel');
   assert.match(worker,/kind:'progress'/,'panel progress must originate from observed backend task states');
   assert.match(worker,/setTimeout\(r,120\)/,'native result polling should stay low latency');
-  assert.match(tray,/TotalMilliseconds>650/,'command endpointing should be tuned for short local voice turns');
+  assert.match(tray,/TotalMilliseconds>500/,'command endpointing should be tuned for fast short local voice turns');
   assert.match(tray,/TotalMilliseconds>380/,'wake endpointing should be tuned for fast local activation');
   assert.match(overlay,/bool listening=state=="Listening"/,'robot animation must react to runtime state');
   assert.match(overlay,/sealed class WakeHero/,'wake activation must have a dedicated cinematic scene');
