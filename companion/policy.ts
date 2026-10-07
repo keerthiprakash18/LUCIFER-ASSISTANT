@@ -2,7 +2,7 @@ import path from 'node:path';
 import { lstat,realpath,readFile,writeFile,copyFile,unlink,stat,readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
-import os from 'node:os';
+import * as os from 'node:os';
 import { z } from 'zod';
 import { deviceActionSchema,type DeviceAction } from '../shared/contracts.js';
 import { redact } from '../server/auth.js';
