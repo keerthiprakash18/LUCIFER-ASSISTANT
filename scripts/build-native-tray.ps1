@@ -14,7 +14,7 @@ if($LASTEXITCODE -ne 0){throw 'LUCIFER icon builder compilation failed.'}
 if($LASTEXITCODE -ne 0){throw 'LUCIFER icon generation failed.'}
 Add-Type -AssemblyName System.Speech
 $speechAssembly=[System.Speech.Recognition.SpeechRecognitionEngine].Assembly.Location
-& $csc /nologo /target:winexe /main:LuciferNative.Program /platform:x64 /optimize+ ("/win32icon:"+$icon) ("/out:"+$staged) /r:System.Windows.Forms.dll /r:System.Drawing.dll ("/r:"+$speechAssembly) /r:System.Web.Extensions.dll /r:System.Core.dll /r:System.Security.dll (Join-Path $root 'companion\native\Audio.cs') (Join-Path $root 'companion\native\BrandIcon.cs') (Join-Path $root 'companion\native\Diagnostics.cs') (Join-Path $root 'companion\native\AssemblyInfo.cs') (Join-Path $root 'companion\native\Tray.cs')
+& $csc /nologo /target:winexe /main:LuciferNative.Program /platform:x64 /optimize+ ("/win32icon:"+$icon) ("/out:"+$staged) /r:System.Windows.Forms.dll /r:System.Drawing.dll ("/r:"+$speechAssembly) /r:System.Web.Extensions.dll /r:System.Core.dll /r:System.Security.dll (Join-Path $root 'companion\native\Audio.cs') (Join-Path $root 'companion\native\BrandIcon.cs') (Join-Path $root 'companion\native\Diagnostics.cs') (Join-Path $root 'companion\native\AssemblyInfo.cs') (Join-Path $root 'companion\native\Overlay.cs') (Join-Path $root 'companion\native\Tray.cs')
 if($LASTEXITCODE -ne 0){throw 'Native tray compilation failed; the running installed app was not stopped.'}
 function Installed-Processes{@(Get-CimInstance Win32_Process | Where-Object {$_.Name -eq 'LUCIFER.exe' -and $_.ExecutablePath -eq $installed})}
 if($Restart -and (Installed-Processes).Count){

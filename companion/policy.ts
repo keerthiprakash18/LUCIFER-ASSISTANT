@@ -2,6 +2,7 @@ import path from 'node:path';
 import { lstat,realpath,readFile,writeFile,copyFile,unlink,stat,readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { spawn } from 'node:child_process';
+import * as os from 'node:os';
 import { z } from 'zod';
 import { deviceActionSchema,type DeviceAction } from '../shared/contracts.js';
 import { redact } from '../server/auth.js';
@@ -9,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { browserAction } from './browser.js';
 import { discoverApps,observeApp } from './windows-tools.js';
 const executableSchema=z.object({executable:z.string().min(1),args:z.array(z.string().max(300)).max(30)}).strict();
-export const policySchema=z.object({server:z.url(),name:z.string().min(1).max(80),apps:z.record(z.string(),executableSchema),folders:z.record(z.string(),z.string()),websites:z.array(z.url()),allowHttpsWebsites:z.boolean().optional(),browserAccess:z.boolean().optional(),commands:z.record(z.string(),executableSchema.extend({folders:z.array(z.string())})),actions:z.array(z.enum(['open_app','open_website','open_project','read_file','find_files','write_document','move_file','run_command','edit_file','discover_apps','observe_app','browser_action','open_document']))}).strict();
+export const policySchema=z.object({server:z.url(),name:z.string().min(1).max(80),apps:z.record(z.string(),executableSchema),folders:z.record(z.string(),z.string()),websites:z.array(z.url()),allowHttpsWebsites:z.boolean().optional(),browserAccess:z.boolean().optional(),commands:z.record(z.string(),executableSchema.extend({folders:z.array(z.string())})),actions:z.array(z.enum(['open_app','open_website','open_project','read_file','find_files','write_document','move_file','run_command','edit_file','discover_apps','observe_app','browser_action','open_document','system_control','system_info']))}).strict();
 export type Policy=z.infer<typeof policySchema>;
 const privateComponent=/^(?:\.local|\.git|node_modules|\.env(?:\..*)?|ai-credentials\.(?:key|enc)|credential\.bin|lucifer\.db(?:-.*)?)$/i;
 export function validateServer(server:string) {const url=new URL(server);if(url.username||url.password||url.search||url.hash)throw new Error('Server URL must not contain credentials or query strings');if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)))throw new Error('Remote companion connections require HTTPS');}
@@ -29,6 +30,17 @@ export async function executeAction(policy:Policy,input:unknown,signal:AbortSign
   const action=deviceActionSchema.parse(input);if(!policy.actions.includes(action.kind))throw new Error('Capability disabled on laptop');signal.throwIfAborted();
   const root='folder'in action?policy.folders[action.folder]:undefined;if('folder'in action&&!root)throw new Error('Folder alias not approved');
   if(['run_command','edit_file','move_file'].includes(action.kind)){if(!await approve(action))throw new Error('Local owner denied authorization');signal.throwIfAborted();}
+  if(action.kind==='system_info'){
+    const cpus=os.cpus();const total=os.totalmem(),free=os.freemem();
+    return {hostname:os.hostname(),platform:os.platform(),release:os.release(),architecture:os.arch(),logicalCores:cpus.length,cpu:cpus[0]?.model||'unknown',memoryTotalBytes:total,memoryFreeBytes:free,memoryUsedPercent:total?Math.round((1-free/total)*1000)/10:0,uptimeSeconds:Math.round(os.uptime())};
+  }
+  if(action.kind==='system_control'){
+    if(process.platform!=='win32')throw new Error('Windows system controls require the Windows companion');
+    const vk=action.operation==='volume_up'?0xAF:action.operation==='volume_down'?0xAE:0xAD;
+    const script="$signature='[DllImport(\"user32.dll\")]public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);'; Add-Type -MemberDefinition $signature -Name Native -Namespace Lucifer -ErrorAction Stop; [Lucifer.Native]::keybd_event("+vk+",0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 25; [Lucifer.Native]::keybd_event("+vk+",0,2,[UIntPtr]::Zero);";
+    await new Promise<void>((resolve,reject)=>{const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-Command',script],{shell:false,windowsHide:true,signal});let err='';child.stderr.on('data',b=>err+=b);child.once('error',reject);child.once('close',code=>code===0?resolve():reject(new Error(redact(err)||'Windows volume control failed')));});
+    return {operation:action.operation,accepted:true,verified:'Windows media-key event completed'};
+  }
   if(action.kind==='discover_apps')return discoverApps(signal);
   if(action.kind==='observe_app'){const app=policy.apps[action.app];if(!app)throw new Error('Application is not approved');return observeApp(app.executable,signal);}
   if(action.kind==='open_document'){if(!/\.(txt|md|csv)$/i.test(action.path))throw new Error('Only scoped text documents can be opened');const app=policy.apps[action.app];if(!app)throw new Error('Application is not approved');const file=await scopedPath(root!,action.path);if(!(await stat(file)).isFile())throw new Error('Choose a regular text file');return {...await windowsOpen(app.executable,signal,[...app.args,file]),detail:'Windows accepted the scoped document launch; use observe_app/read_file to verify.'};}

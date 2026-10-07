@@ -120,12 +120,15 @@ function MemoryPanel({ data, act }: PanelProps) {
 
 function IntegrationsPanel({ data, act }: PanelProps) {
   const [verification, setVerification] = useState<any>(null);
+  const [integrationError,setIntegrationError]=useState('');
+  const telegram=async(action:'challenge'|'verify')=>{setIntegrationError('');try{if(action==='challenge')setVerification(await api('/telegram/challenge','POST'));else{await api('/telegram/verify','POST');setVerification(null);await act(async()=>{});}}catch(error){setIntegrationError((error as Error).message);}};
   return <section className="page-content"><div className="grid">{data.integrations.map(i => <div className="form-panel" key={i.id}>
     {i.id !== 'model' && <><h3>{i.name} <span className="pill">{i.status.replaceAll('_', ' ')}</span></h3><p>{i.detail}</p></>}
      {i.id === 'model' && <AIProviderPanel data={data} act={act} />}
     {i.id === 'telegram' && <>
-      <button onClick={() => void act(async () => setVerification(await api('/telegram/challenge', 'POST')))}>Verify Telegram destination</button>
-      {verification?.telegramCode && <div className="notice">Open <a href={verification.url} target="_blank" rel="noreferrer">@{verification.bot}</a>, or send <code>/start {verification.telegramCode}</code>in a private chat, then click:<button onClick={() => void act(async () => { await api('/telegram/verify', 'POST'); setVerification(null); })}>Check verification</button></div>}
+      <button onClick={() => void telegram('challenge')}>Verify Telegram destination</button>
+      {integrationError&&<p className="hint" role="status">{integrationError} Telegram is optional; local voice and NVIDIA remain available.</p>}
+      {verification?.telegramCode && <div className="notice">Open <a href={verification.url} target="_blank" rel="noreferrer">@{verification.bot}</a>, or send <code>/start {verification.telegramCode}</code> in a private chat, then click:<button onClick={() => void telegram('verify')}>Check verification</button></div>}
       {data.telegram?.name && <p>Verified destination: {data.telegram.name}</p>}
     </>}
     {i.id !== 'model' && <button disabled={i.id === 'instagram'} onClick={() => void act(() => api('/integrations/' + i.id + '/disconnect', 'POST'))}>Disconnect {i.name}</button>}
@@ -147,6 +150,7 @@ function SettingsPanel({ data, act, voiceInfo }: PanelProps & { voiceInfo: Voice
     <label>Speech recognition language<select value={s.language} onChange={e => void act(() => api('/settings', 'PUT', { ...s, language: e.target.value }))}><option value="auto">Mixed/Tamil · ta-IN recognition</option><option value="en-IN">English · en-IN</option><option value="ta-IN">தமிழ் · ta-IN</option></select></label>
     <p>Browser recognition uses one locale per turn. Tanglish interpretation is handled by your configured model; language accuracy needs a real microphone test.</p>
     <div className="list-card"><h3>Voice diagnosis</h3><p><span className="pill">{voiceInfo?.supported ? 'browser capability detected' : 'text fallback available'}</span> · {voiceInfo?.microphone || 'permission unknown'} · {voiceInfo?.language || 'language pending'}</p><p>{voiceInfo?.note || 'Open this section to inspect browser support and microphone permission without starting a recording.'}</p><small>Speech-service network errors are produced by the browser recognition service and do not test or indicate AI provider connectivity. LUCIFER will not automatically retry recording.</small></div>
+    <label>Accent theme<select value={s.accent || 'rose'} onChange={e => void act(() => api('/settings', 'PUT', { ...s, accent: e.target.value }))}><option value="rose">Rose</option><option value="violet">Violet</option><option value="blue">Blue</option><option value="emerald">Emerald</option><option value="gold">Gold</option></select></label>
     <label>Timezone<input defaultValue={s.timezone} onBlur={e => { if (e.target.value !== s.timezone) void act(() => api('/settings', 'PUT', { ...s, timezone: e.target.value })); }} /></label>
     <label>Selected project / brand context<input defaultValue={s.context} onBlur={e => { if (e.target.value !== s.context) void act(() => api('/settings', 'PUT', { ...s, context: e.target.value })); }} /></label>
     <label className="check"><input type="checkbox" checked={s.spokenReplies} onChange={e => void act(() => api('/settings', 'PUT', { ...s, spokenReplies: e.target.checked }))} />Speak assistant replies</label>

@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: mkdir -p .local/tests
+      - run: npm run browser:install
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:provider-ui
+
+  native-compile:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Windows native tray and floating panel
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          $csc="$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          Add-Type -AssemblyName System.Speech
+          $speechAssembly=[System.Speech.Recognition.SpeechRecognitionEngine].Assembly.Location
+          $sources=@(
+            (Join-Path $PWD 'companion\native\Audio.cs'),
+            (Join-Path $PWD 'companion\native\BrandIcon.cs'),
+            (Join-Path $PWD 'companion\native\Diagnostics.cs'),
+            (Join-Path $PWD 'companion\native\AssemblyInfo.cs'),
+            (Join-Path $PWD 'companion\native\Overlay.cs'),
+            (Join-Path $PWD 'companion\native\Tray.cs')
+          )
+          & $csc /nologo /target:winexe /main:LuciferNative.Program /platform:x64 /optimize+ /out:lucifer-ci.exe /r:System.Windows.Forms.dll /r:System.Drawing.dll ("/r:"+$speechAssembly) /r:System.Web.Extensions.dll /r:System.Core.dll /r:System.Security.dll $sources
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}

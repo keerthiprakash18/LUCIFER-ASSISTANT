@@ -11,7 +11,7 @@ export interface AppState {
   files: StoredFile[]; memory: Memory[]; reminders: Reminder[]; skills: Skill[];
   integrations: { id: string; name: string; status: string; detail: string }[];
   notifications: any[]; proposals: any[]; deliveries: any[]; emergency?: boolean; telegram?: any;
-  ai?: any;
+  ai?: any; nvidiaPool?: any;
 }
 type BoundaryProps = { children: ReactNode; onBack?: () => void };
 type BoundaryState = { error: Error | null };
@@ -103,9 +103,9 @@ export function App() {
   useEffect(()=>{if(section!=='Assistant')stop();},[section]);
   useEffect(() => {
     if (!auth?.authenticated) return;
-    void refresh(); const timer = setInterval(refresh, 1800); return () => clearInterval(timer);
+    void refresh(); const timer = setInterval(refresh, 800); return () => clearInterval(timer);
   }, [auth?.authenticated]);
-  useEffect(() => { if (data) document.documentElement.dataset.theme = data.settings.theme; }, [data?.settings.theme]);
+  useEffect(() => { if (data) { document.documentElement.dataset.theme = data.settings.theme; document.documentElement.dataset.accent = data.settings.accent || 'rose'; } }, [data?.settings.theme, data?.settings.accent]);
   useEffect(() => { if (data && speech.current) void speech.current.diagnostics(browserSpeechLanguage(data.settings.language)).then(setVoiceInfo); }, [data?.settings.language, section]);
   useEffect(() => {
     thread.current?.scrollTo({ top: thread.current.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });

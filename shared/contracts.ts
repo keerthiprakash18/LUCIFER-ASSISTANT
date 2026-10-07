@@ -3,9 +3,9 @@ export const taskStates = ['queued','running','awaiting_input','awaiting_authori
 export type TaskState = typeof taskStates[number];
 export interface Task { id: string; title: string; state: TaskState; events: { at: string; text: string }[]; result?: unknown; error?: string; createdAt: string }
 export interface Message { id: string; role: 'user'|'assistant'; text: string; createdAt: string; taskId?: string; fileIds?: string[] }
-export interface Settings { language: 'auto'|'en-IN'|'ta-IN'; timezone: string; theme: 'light'|'dark'; spokenReplies: boolean; memoryEnabled: boolean; retentionDays: number; context: string; permissions: { model: boolean; files: boolean; reports: boolean; devices: boolean; telegram: boolean; reminders: boolean } }
-export const defaultSettings: Settings = { language:'auto', timezone:'Asia/Kolkata', theme:'light', spokenReplies:false, memoryEnabled:true, retentionDays:30, context:'personal', permissions:{model:true,files:true,reports:true,devices:true,telegram:true,reminders:true} };
-export const settingsSchema = z.object({ language:z.enum(['auto','en-IN','ta-IN']), timezone:z.string().max(80).refine(v => { try { new Intl.DateTimeFormat('en',{timeZone:v}); return true; } catch { return false; } },'Invalid timezone'), theme:z.enum(['light','dark']), spokenReplies:z.boolean(), memoryEnabled:z.boolean(), retentionDays:z.number().int().min(1).max(365), context:z.string().min(1).max(80), permissions:z.object({model:z.boolean(),files:z.boolean(),reports:z.boolean(),devices:z.boolean(),telegram:z.boolean(),reminders:z.boolean()}) });
+export interface Settings { language: 'auto'|'en-IN'|'ta-IN'; timezone: string; theme: 'light'|'dark'; accent: 'rose'|'violet'|'blue'|'emerald'|'gold'; spokenReplies: boolean; memoryEnabled: boolean; retentionDays: number; context: string; permissions: { model: boolean; files: boolean; reports: boolean; devices: boolean; telegram: boolean; reminders: boolean } }
+export const defaultSettings: Settings = { language:'auto', timezone:'Asia/Kolkata', theme:'light', accent:'rose', spokenReplies:false, memoryEnabled:true, retentionDays:30, context:'personal', permissions:{model:true,files:true,reports:true,devices:true,telegram:true,reminders:true} };
+export const settingsSchema = z.object({ language:z.enum(['auto','en-IN','ta-IN']), timezone:z.string().max(80).refine(v => { try { new Intl.DateTimeFormat('en',{timeZone:v}); return true; } catch { return false; } },'Invalid timezone'), theme:z.enum(['light','dark']), accent:z.enum(['rose','violet','blue','emerald','gold']).default('rose'), spokenReplies:z.boolean(), memoryEnabled:z.boolean(), retentionDays:z.number().int().min(1).max(365), context:z.string().min(1).max(80), permissions:z.object({model:z.boolean(),files:z.boolean(),reports:z.boolean(),devices:z.boolean(),telegram:z.boolean(),reminders:z.boolean()}) });
 export interface Memory { id: string; context: string; key: string; value: string; provenance: string; updatedAt: string }
 export interface StoredFile { id: string; name: string; type: string; bytes: number; text?: string; createdAt: string; expiresAt: string; generated: boolean; reportId?: string }
 export const deviceActionSchema = z.discriminatedUnion('kind', [
@@ -22,6 +22,8 @@ export const deviceActionSchema = z.discriminatedUnion('kind', [
   z.object({kind:z.literal('observe_app'),app:z.string().min(1).max(60)}).strict(),
   z.object({kind:z.literal('open_document'),app:z.enum(['notepad','vscode']),folder:z.string().min(1).max(60),path:z.string().min(1).max(300)}).strict(),
   z.object({kind:z.literal('browser_action'),operation:z.enum(['open','observe','search','click','fill']),url:z.string().max(2048).optional(),query:z.string().max(300).optional(),reference:z.string().max(100).optional(),text:z.string().max(2000).optional()}).strict(),
+  z.object({kind:z.literal('system_control'),operation:z.enum(['volume_up','volume_down','volume_mute'])}).strict(),
+  z.object({kind:z.literal('system_info')}).strict(),
 ]);
 export type DeviceAction = z.infer<typeof deviceActionSchema>;
 export interface Capabilities { apps:string[]; folders:string[]; commands:string[]; actions:string[] }

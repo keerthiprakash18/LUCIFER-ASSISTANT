@@ -45,18 +45,22 @@ test('Gemini distinguishes output exhaustion, safety, no candidates, genuine emp
  for(const [value,code] of cases)assert.throws(()=>readGeminiResponse(response(value),undefined,true),(error:unknown)=>error instanceof GeminiError&&error.code===code);
 });
 
-test('Gemini HTTP failures have separate actionable errors and quota is attempted only once (mock SDK transport)',async()=>{
- for(const [status,body,code] of [
-   [400,{error:{code:400,status:'INVALID_ARGUMENT',message:'API key not valid. API_KEY_INVALID SYNTHETIC-TEST-CREDENTIAL'}},'invalid_credentials'],
-   [403,{error:{code:403,status:'PERMISSION_DENIED',message:'Project permissions denied'}},'access_denied'],
-   [404,{error:{code:404,status:'NOT_FOUND',message:'models/x not found'}},'model_unavailable'],
-   [429,{error:{code:429,status:'RESOURCE_EXHAUSTED',message:'Quota limit reached'}},'quota'],
-   [503,{error:{code:503,status:'UNAVAILABLE',message:'Model is temporarily unavailable'}},'unavailable'],
+test('Gemini HTTP failures are classified; transient 5xx retries are bounded while quota/credential failures are not bypassed',async()=>{
+ for(const [status,body,code,expectedCalls] of [
+   [400,{error:{code:400,status:'INVALID_ARGUMENT',message:'API key not valid. API_KEY_INVALID SYNTHETIC-TEST-CREDENTIAL'}},'invalid_credentials',1],
+   [403,{error:{code:403,status:'PERMISSION_DENIED',message:'Project permissions denied'}},'access_denied',1],
+   [404,{error:{code:404,status:'NOT_FOUND',message:'models/x not found'}},'model_unavailable',1],
+   [429,{error:{code:429,status:'RESOURCE_EXHAUSTED',message:'Quota limit reached'}},'quota',1],
+   [503,{error:{code:503,status:'UNAVAILABLE',message:'Model is temporarily unavailable'}},'unavailable',3],
  ] as const){
    let calls=0;const transport:typeof fetch=async()=>{calls++;return Response.json(body,{status});};
    await assert.rejects(requestGemini(selected,{contents:'Probe'},{transport}),(error:unknown)=>error instanceof GeminiError&&error.code===code&&error.diagnostics?.httpStatus===status&&!JSON.stringify(error).includes('SYNTHETIC-TEST-CREDENTIAL'));
-   assert.equal(calls,1,`${code} must not trigger retries or fallback`);
+   assert.equal(calls,expectedCalls,String(code)+' retry count must stay bounded');
  }
+ let recoveredCalls=0;
+ const recovered:typeof fetch=async()=>{recoveredCalls++;if(recoveredCalls<3)return Response.json({error:{code:503,status:'UNAVAILABLE',message:'Temporary overload'}},{status:503});return Response.json(stopped('Recovered after transient outage.'));};
+ const recoveredResult=await requestGemini(selected,{contents:'Probe'},{transport:recovered});
+ assert.equal(recoveredCalls,3);assert.equal(readGeminiResponse(recoveredResult.response,recoveredResult.diagnostics).text,'Recovered after transient outage.');
  const transport:typeof fetch=async(_url,init)=>new Promise((_resolve,reject)=>{init?.signal?.addEventListener('abort',()=>reject(init.signal?.reason),{once:true});});
  await assert.rejects(requestGemini(selected,{contents:'Probe'},{transport,timeoutMs:20}),(error:unknown)=>error instanceof GeminiError&&error.code==='timeout');
 });

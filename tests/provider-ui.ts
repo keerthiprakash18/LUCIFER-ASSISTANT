@@ -10,7 +10,7 @@ mkdirSync('.local/verification', { recursive: true });
 const directory = mkdtempSync(path.resolve('.local/verification/provider-ui-'));
 // No configured credentials, remote requests, model downloads, or owner-data writes.
 const previous = { origin: config.origin, provider: config.provider, apiKey: config.apiKey, geminiApiKey: config.geminiApiKey };
-config.provider = 'gemini'; config.apiKey = ''; config.geminiApiKey = '';
+config.provider = 'custom'; config.apiKey = ''; config.geminiApiKey = '';
 const service = await createApp(directory);
 setOwner(service.store, 'isolated-provider-ui-password');
 service.store.put('settings', { id: 'owner', ...structuredClone(defaultSettings) });
@@ -59,21 +59,24 @@ try {
   for (const section of ['Settings', 'Skills & integrations']) {
     await open(section);
     // The regression fails against the original live module: Settings had no configure control.
-    for (const provider of ['gemini', 'openai', 'ollama']) {
+    for (const provider of ['openai', 'ollama', 'custom']) {
       await form.getByLabel('Provider', { exact: true }).selectOption(provider);
       await form.getByLabel('Model', { exact: true }).fill(`unsaved-${provider}`);
+      if(provider==='custom'){await form.getByLabel('Provider name',{exact:true}).fill('Unsaved custom');await form.getByLabel('Base URL',{exact:true}).fill('https://custom.example/v1');await form.getByLabel('API protocol',{exact:true}).selectOption('responses');}
     }
-    for (const provider of ['gemini', 'openai', 'ollama']) {
+    for (const provider of ['openai', 'ollama', 'custom']) {
       await form.getByLabel('Provider', { exact: true }).selectOption(provider);
       assert.equal(await form.getByLabel('Model', { exact: true }).inputValue(), `unsaved-${provider}`);
       assert.equal(await form.getByLabel('API key', { exact: false }).count(), provider === 'ollama' ? 0 : 1);
+      if(provider==='custom'){assert.equal(await form.getByLabel('Provider name',{exact:true}).inputValue(),'Unsaved custom');assert.equal(await form.getByLabel('API protocol',{exact:true}).inputValue(),'responses');assert.equal(await form.getByText(/structured function call/i).count(),1);}
     }
+    assert.equal(await form.getByLabel('Provider', { exact: true }).locator('option[value="gemini"]').count(),0,'Gemini must not appear in owner-facing provider choices');
     assert.equal(configRequests, 0); assert.equal(testRequests, 0);
     await page.reload(); await form.waitFor(); // Restore navigation/open state, never a key from browser storage.
     await form.getByRole('button', { name: 'Close', exact: true }).click();
   }
   await open('Settings');
-  for (const provider of ['gemini', 'openai', 'ollama']) {
+  for (const provider of ['openai', 'ollama']) {
     await form.getByLabel('Provider', { exact: true }).selectOption(provider);
     await form.getByLabel('Model', { exact: true }).fill(provider === 'ollama' ? 'gemma3:1b' : `unconfigured-${provider}`);
     if (provider === 'ollama') await form.getByLabel('Base URL', { exact: true }).fill('http://127.0.0.1:1');
@@ -85,7 +88,7 @@ try {
   }
   assert.equal(testRequests, 1, 'Only explicit Ollama test should reach the test endpoint without keys');
   assert.equal((await service.ai.status()).status, 'connection_failed');
-  await form.getByLabel('Provider', { exact: true }).selectOption('gemini');
+  await form.getByLabel('Provider', { exact: true }).selectOption('openai');
 
   // Slow backend: progress, cancellation, synchronous double-submit guard, draft retention.
   let release!: () => void;
@@ -99,7 +102,7 @@ try {
   await form.getByRole('button', { name: 'Cancel request' }).click(); await ready();
   assert.match(await form.getByRole('status').innerText(), /cancelled/i);
   release(); await page.unroute('**/api/integrations/model/config');
-  assert.equal(await form.getByLabel('Model', { exact: true }).inputValue(), 'unconfigured-gemini');
+  assert.equal(await form.getByLabel('Model', { exact: true }).inputValue(), 'unconfigured-openai');
 
   for (const response of [
     { status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Temporary server failure. Retry.' }) },
@@ -109,7 +112,7 @@ try {
     await page.route('**/api/integrations/model/config', route => route.fulfill(response));
     await form.getByRole('button', { name: 'Save configuration' }).click(); await ready();
     assert.match(await form.getByRole('status').innerText(), /failure|unreadable|invalid/i);
-    assert.equal(await form.getByLabel('Model', { exact: true }).inputValue(), 'unconfigured-gemini');
+    assert.equal(await form.getByLabel('Model', { exact: true }).inputValue(), 'unconfigured-openai');
     await page.unroute('**/api/integrations/model/config');
   }
 
@@ -187,7 +190,7 @@ try {
   for (const [kind, record] of saved) assert.deepEqual(service.store.get(kind,record.id), record);
   assert.deepEqual(exceptions, []); assert.deepEqual(sdkRequests, []);
   assert.deepEqual(consoleErrors.filter(error => !/Failed to load resource/.test(error)), []);
-  writeFileSync('.local/verification/provider-ui-results.json', JSON.stringify({ passed: true, entryPaths: ['Settings','Skills & integrations'], choices: ['gemini','openai','ollama'], credentials: 'none', pageExceptions: exceptions, consoleErrors, httpErrors, failedRequests, sdkRequests, recovery: ['slow backend','cancel','duplicate submit','HTTP 503','HTML response','invalid status','invalid workspace','error boundary retry/back','refresh'], boundaryExceptions,boundaryConsole,viewports: [1440,390], themes: ['light','dark'], savedRecordsPreserved: true, speech:'synthetic network-error event, no automatic retry, text usable',liveAI: 'not tested' }, null, 2));
+  writeFileSync('.local/verification/provider-ui-results.json', JSON.stringify({ passed: true, entryPaths: ['Settings','Skills & integrations'], choices: ['custom','freellmapi','openai','ollama'], credentials: 'none', pageExceptions: exceptions, consoleErrors, httpErrors, failedRequests, sdkRequests, recovery: ['slow backend','cancel','duplicate submit','HTTP 503','HTML response','invalid status','invalid workspace','error boundary retry/back','refresh'], boundaryExceptions,boundaryConsole,viewports: [1440,390], themes: ['light','dark'], savedRecordsPreserved: true, speech:'synthetic network-error event, no automatic retry, text usable',liveAI: 'not tested' }, null, 2));
   console.log('Provider UI regression passed: both entries, drafts, errors/cancel, refresh, sections, themes, narrow layout. No live AI requests.');
 } catch(error) {
   await page.screenshot({ path: '.local/verification/provider-ui-failure.png', fullPage: true }).catch(()=>{});

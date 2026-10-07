@@ -8,6 +8,9 @@ function Send-Control($action){try{$pipe=New-Object IO.Pipes.NamedPipeClientStre
 if($DisableStartup -or $Uninstall){Remove-ItemProperty -Path $startup -Name 'LUCIFER Assistant' -ErrorAction SilentlyContinue;if($Uninstall){Send-Control 'exit'; & wsl.exe -d Ubuntu --cd ($root.Replace('C:\','/mnt/c/').Replace('\','/')) -- bash .local/native/stop-backend.sh};Write-Output 'Startup disabled. Owner data, pairing, encrypted credentials and downloaded models retained.';exit}
 New-Item -ItemType Directory -Force $directory,(Join-Path $directory 'audio'),(Join-Path $root '.local\notes')|Out-Null
 $apps=@{notepad=@{executable="$env:WINDIR\System32\notepad.exe";args=@()}}
+$calculator="$env:WINDIR\System32\calc.exe";$explorer="$env:WINDIR\explorer.exe"
+if(Test-Path $calculator){$apps.calculator=@{executable=$calculator;args=@()}}
+if(Test-Path $explorer){$apps.camera=@{executable=$explorer;args=@('microsoft.windows.camera:')}}
 $edge="${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe";$chrome="${env:ProgramFiles}\Google\Chrome\Application\chrome.exe";$code="$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe"
 if(Test-Path $edge){$apps.edge=@{executable=$edge;args=@()};$apps.browser=$apps.edge}
 if(Test-Path $chrome){$apps.chrome=@{executable=$chrome;args=@()};if(!$apps.browser){$apps.browser=$apps.chrome}}
@@ -20,6 +23,9 @@ if(!(Test-Path $policyPath)){
   $policy|ConvertTo-Json -Depth 10|Set-Content $policyPath -Encoding UTF8
 }
 $policy=Get-Content $policyPath -Raw|ConvertFrom-Json
+$policyChanged=$false
+foreach($alias in $apps.Keys){if(-not $policy.apps.PSObject.Properties[$alias]){$policy.apps|Add-Member -NotePropertyName $alias -NotePropertyValue ([pscustomobject]$apps[$alias]);$policyChanged=$true}}
+if($policyChanged){$policy|ConvertTo-Json -Depth 10|Set-Content $policyPath -Encoding UTF8}
 $capabilities=@{apps=@($policy.apps.PSObject.Properties.Name);folders=@($policy.folders.PSObject.Properties.Name);commands=@();actions=@($policy.actions)}
 @{windowsOwner=[Environment]::UserName;capabilities=$capabilities}|ConvertTo-Json -Depth 6|Set-Content (Join-Path $directory 'install-request.json') -Encoding UTF8
 $wslRoot=$root.Replace('C:\','/mnt/c/').Replace('\','/')
@@ -79,6 +85,21 @@ Send-Control 'exit';Start-Sleep -Seconds 2
 & wsl.exe -d Ubuntu --cd $wslRoot -- bash .local/native/stop-backend.sh
 if($LASTEXITCODE -ne 0){throw 'Managed production backend could not be stopped for upgrade.'}
 & (Join-Path $PSScriptRoot 'build-native-tray.ps1')
+Write-Output 'Starting LUCIFER production backend and waiting for health check...'
+& wsl.exe -d Ubuntu --cd $wslRoot -- bash -lc "nohup bash .local/native/start-backend.sh >/dev/null 2>&1 &"
+if($LASTEXITCODE -ne 0){throw 'Production backend launch command failed.'}
+$healthy=$false
+for($i=0;$i -lt 20;$i++){
+  Start-Sleep -Milliseconds 500
+  try{
+    $health=Invoke-RestMethod -Uri 'http://127.0.0.1:3001/api/health' -TimeoutSec 2
+    if($health.ok){$healthy=$true;break}
+  }catch{}
+}
+if(!$healthy){
+  try{$tail=& wsl.exe -d Ubuntu --cd $wslRoot -- bash -lc "tail -n 40 .local/native/backend.log 2>/dev/null || true"}catch{$tail=''}
+  throw ('Production backend did not become healthy at localhost:3001. Backend log: ' + ($tail -join [Environment]::NewLine))
+}
 New-Item -Force $startup|Out-Null
 Set-ItemProperty -Path $startup -Name 'LUCIFER Assistant' -Value ('"'+(Join-Path $directory 'LUCIFER.exe')+'" --supervise')
 & (Join-Path $PSScriptRoot 'start-native.ps1')
