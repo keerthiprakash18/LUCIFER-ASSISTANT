@@ -40,51 +40,51 @@ namespace LuciferNative {
     Point windowOrigin;
     DateTime lastActive=DateTime.UtcNow;
     string currentState="Idle";
-    const int ExpandedWidth=430;
-    const int ExpandedHeight=520;
-    const int LauncherSize=82;
+    const int ExpandedWidth=390;
+    const int ExpandedHeight=292;
+    const int LauncherSize=74;
 
     public AssistantOverlay(string project,Action<string> onSubmit,Action onTalk,Action onStop){
       root=project;submit=onSubmit;talk=onTalk;stop=onStop;
       Text="LUCIFER";FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;
-      StartPosition=FormStartPosition.Manual;AutoScaleMode=AutoScaleMode.Dpi;BackColor=Color.FromArgb(20,16,22);
-      ForeColor=Color.White;Opacity=0.97;Width=ExpandedWidth;Height=ExpandedHeight;MinimumSize=new Size(LauncherSize,LauncherSize);
+      StartPosition=FormStartPosition.Manual;AutoScaleMode=AutoScaleMode.Dpi;BackColor=Color.FromArgb(5,15,24);
+      ForeColor=Color.White;Opacity=0.965;Width=ExpandedWidth;Height=ExpandedHeight;MinimumSize=new Size(LauncherSize,LauncherSize);
       Padding=new Padding(1);DoubleBuffered=true;
 
-      header.Dock=DockStyle.Top;header.Height=112;header.BackColor=Color.FromArgb(28,22,31);header.Cursor=Cursors.SizeAll;
+      header.Dock=DockStyle.Top;header.Height=88;header.BackColor=Color.FromArgb(8,24,36);header.Cursor=Cursors.SizeAll;
       header.MouseDown+=DragStart;header.MouseMove+=DragMove;header.MouseUp+=DragEnd;
       Controls.Add(header);
 
-      avatar.Location=new Point(18,16);avatar.Size=new Size(72,72);avatar.LauncherClicked+=delegate{if(collapsed)Expand();};
+      avatar.Location=new Point(14,10);avatar.Size=new Size(64,64);avatar.LauncherClicked+=delegate{if(collapsed)Expand();};
       header.Controls.Add(avatar);
-      title.Text="LUCIFER";title.Font=new Font("Segoe UI Semibold",16,FontStyle.Bold);title.AutoSize=true;title.Location=new Point(108,18);title.ForeColor=Color.FromArgb(248,238,244);
+      title.Text="LUCIFER";title.Font=new Font("Segoe UI Semibold",14,FontStyle.Bold);title.AutoSize=true;title.Location=new Point(92,13);title.ForeColor=Color.FromArgb(238,249,255);
       title.MouseDown+=DragStart;title.MouseMove+=DragMove;title.MouseUp+=DragEnd;header.Controls.Add(title);
-      stateLabel.Text="Idle";stateLabel.Font=new Font("Segoe UI",10,FontStyle.Bold);stateLabel.AutoSize=true;stateLabel.Location=new Point(110,53);stateLabel.ForeColor=Color.FromArgb(255,92,147);
+      stateLabel.Text="Ready";stateLabel.Font=new Font("Segoe UI Semibold",9,FontStyle.Bold);stateLabel.AutoSize=true;stateLabel.Location=new Point(94,42);stateLabel.ForeColor=Color.FromArgb(77,201,255);
       stateLabel.MouseDown+=DragStart;stateLabel.MouseMove+=DragMove;stateLabel.MouseUp+=DragEnd;header.Controls.Add(stateLabel);
-      detailLabel.Text="Say Hey Lucifer";detailLabel.Font=new Font("Segoe UI",9);detailLabel.AutoEllipsis=true;detailLabel.Location=new Point(110,76);detailLabel.Size=new Size(250,24);detailLabel.ForeColor=Color.FromArgb(196,184,194);
+      detailLabel.Text="Say “Lucifer”";detailLabel.Font=new Font("Segoe UI",8);detailLabel.AutoEllipsis=true;detailLabel.Location=new Point(94,63);detailLabel.Size=new Size(238,20);detailLabel.ForeColor=Color.FromArgb(153,185,204);
       detailLabel.MouseDown+=DragStart;detailLabel.MouseMove+=DragMove;detailLabel.MouseUp+=DragEnd;header.Controls.Add(detailLabel);
-      collapseButton.Text="—";collapseButton.FlatStyle=FlatStyle.Flat;collapseButton.FlatAppearance.BorderSize=0;collapseButton.ForeColor=Color.FromArgb(206,190,201);collapseButton.BackColor=Color.FromArgb(28,22,31);collapseButton.Size=new Size(38,34);collapseButton.Location=new Point(382,8);collapseButton.TabStop=true;collapseButton.AccessibleName="Collapse LUCIFER panel";collapseButton.Click+=delegate{Collapse();};header.Controls.Add(collapseButton);
+      collapseButton.Text="—";collapseButton.FlatStyle=FlatStyle.Flat;collapseButton.FlatAppearance.BorderSize=0;collapseButton.ForeColor=Color.FromArgb(139,196,224);collapseButton.BackColor=Color.FromArgb(8,24,36);collapseButton.Size=new Size(34,30);collapseButton.Location=new Point(348,6);collapseButton.TabStop=true;collapseButton.AccessibleName="Collapse LUCIFER panel";collapseButton.Click+=delegate{Collapse();};header.Controls.Add(collapseButton);
 
-      contentPanel.Dock=DockStyle.Fill;contentPanel.Padding=new Padding(18,12,18,16);contentPanel.BackColor=Color.FromArgb(20,16,22);Controls.Add(contentPanel);
-      waveform.Location=new Point(18,8);waveform.Size=new Size(392,64);contentPanel.Controls.Add(waveform);
+      contentPanel.Dock=DockStyle.Fill;contentPanel.Padding=new Padding(16,8,16,12);contentPanel.BackColor=Color.FromArgb(5,15,24);Controls.Add(contentPanel);
+      waveform.Location=new Point(16,4);waveform.Size=new Size(356,38);contentPanel.Controls.Add(waveform);
 
-      var recognized=new Label{Text="RECOGNIZED COMMAND",Font=new Font("Segoe UI",8,FontStyle.Bold),ForeColor=Color.FromArgb(152,138,149),Location=new Point(18,82),AutoSize=true};
+      var recognized=new Label{Text="YOU SAID",Font=new Font("Segoe UI Semibold",7,FontStyle.Bold),ForeColor=Color.FromArgb(105,157,186),Location=new Point(16,48),AutoSize=true};
       contentPanel.Controls.Add(recognized);
-      transcriptLabel.Text="—";transcriptLabel.Font=new Font("Nirmala UI",10);transcriptLabel.ForeColor=Color.FromArgb(242,233,239);transcriptLabel.Location=new Point(18,103);transcriptLabel.Size=new Size(392,48);transcriptLabel.AutoEllipsis=true;contentPanel.Controls.Add(transcriptLabel);
+      transcriptLabel.Text="—";transcriptLabel.Font=new Font("Nirmala UI",9);transcriptLabel.ForeColor=Color.FromArgb(232,245,252);transcriptLabel.Location=new Point(16,65);transcriptLabel.Size=new Size(356,30);transcriptLabel.AutoEllipsis=true;contentPanel.Controls.Add(transcriptLabel);
 
-      var progress=new Label{Text="TASK PROGRESS / RESULT",Font=new Font("Segoe UI",8,FontStyle.Bold),ForeColor=Color.FromArgb(152,138,149),Location=new Point(18,163),AutoSize=true};
+      var progress=new Label{Text="LUCIFER",Font=new Font("Segoe UI Semibold",7,FontStyle.Bold),ForeColor=Color.FromArgb(105,157,186),Location=new Point(16,101),AutoSize=true};
       contentPanel.Controls.Add(progress);
-      resultLabel.Text="Ready.";resultLabel.Font=new Font("Nirmala UI",10);resultLabel.ForeColor=Color.FromArgb(214,203,211);resultLabel.Location=new Point(18,184);resultLabel.Size=new Size(392,62);resultLabel.AutoEllipsis=true;contentPanel.Controls.Add(resultLabel);
+      resultLabel.Text="Ready.";resultLabel.Font=new Font("Nirmala UI",9);resultLabel.ForeColor=Color.FromArgb(190,218,232);resultLabel.Location=new Point(16,118);resultLabel.Size=new Size(356,38);resultLabel.AutoEllipsis=true;contentPanel.Controls.Add(resultLabel);
 
-      input.Location=new Point(18,265);input.Size=new Size(300,31);input.Font=new Font("Nirmala UI",10);input.BorderStyle=BorderStyle.FixedSingle;input.BackColor=Color.FromArgb(37,30,41);input.ForeColor=Color.White;input.AccessibleName="Type a LUCIFER command";input.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Enter&&!e.Shift){e.SuppressKeyPress=true;SubmitText();}};contentPanel.Controls.Add(input);
-      sendButton.Text="Send";sendButton.Location=new Point(326,263);sendButton.Size=new Size(84,34);StyleButton(sendButton,false);sendButton.Click+=delegate{SubmitText();};contentPanel.Controls.Add(sendButton);
+      input.Location=new Point(16,166);input.Size=new Size(264,28);input.Font=new Font("Nirmala UI",9);input.BorderStyle=BorderStyle.FixedSingle;input.BackColor=Color.FromArgb(11,31,45);input.ForeColor=Color.White;input.AccessibleName="Type a LUCIFER command";input.KeyDown+=delegate(object sender,KeyEventArgs e){if(e.KeyCode==Keys.Enter&&!e.Shift){e.SuppressKeyPress=true;SubmitText();}};contentPanel.Controls.Add(input);
+      sendButton.Text="Send";sendButton.Location=new Point(288,165);sendButton.Size=new Size(84,30);StyleButton(sendButton,false);sendButton.Click+=delegate{SubmitText();};contentPanel.Controls.Add(sendButton);
 
-      talkButton.Text="🎙 Talk";talkButton.Location=new Point(18,317);talkButton.Size=new Size(120,40);talkButton.AccessibleName="Talk to LUCIFER";StyleButton(talkButton,false);talkButton.Click+=delegate{MarkActive();ShowPassive();talk();};contentPanel.Controls.Add(talkButton);
-      stopButton.Text="■ Stop";stopButton.Location=new Point(148,317);stopButton.Size=new Size(120,40);stopButton.AccessibleName="Stop LUCIFER";StyleButton(stopButton,true);stopButton.Click+=delegate{MarkActive();stop();};contentPanel.Controls.Add(stopButton);
+      talkButton.Text="🎙 Talk";talkButton.Location=new Point(16,204);talkButton.Size=new Size(104,34);talkButton.AccessibleName="Talk to LUCIFER";StyleButton(talkButton,false);talkButton.Click+=delegate{MarkActive();ShowPassive();talk();};contentPanel.Controls.Add(talkButton);
+      stopButton.Text="■ Stop";stopButton.Location=new Point(128,204);stopButton.Size=new Size(104,34);stopButton.AccessibleName="Stop LUCIFER";StyleButton(stopButton,true);stopButton.Click+=delegate{MarkActive();stop();};contentPanel.Controls.Add(stopButton);
 
-      shortcutLabel.Text="Ctrl+Alt+Space summons · Ctrl+Alt+Esc stops";shortcutLabel.Font=new Font("Segoe UI",8);shortcutLabel.ForeColor=Color.FromArgb(136,122,133);shortcutLabel.Location=new Point(18,375);shortcutLabel.Size=new Size(392,28);shortcutLabel.TextAlign=ContentAlignment.MiddleLeft;contentPanel.Controls.Add(shortcutLabel);
+      shortcutLabel.Text="Ctrl+Alt+Space summon · Ctrl+Alt+Esc stop";shortcutLabel.Font=new Font("Segoe UI",7);shortcutLabel.ForeColor=Color.FromArgb(91,137,162);shortcutLabel.Location=new Point(16,244);shortcutLabel.Size=new Size(356,22);shortcutLabel.TextAlign=ContentAlignment.MiddleLeft;contentPanel.Controls.Add(shortcutLabel);
 
-      Paint+=delegate(object sender,PaintEventArgs e){Color edge=wakeScene?Color.FromArgb(110,68,190,255):Color.FromArgb(78,255,73,132);using(var pen=new Pen(edge,1))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);};
+      Paint+=delegate(object sender,PaintEventArgs e){Color edge=Color.FromArgb(wakeScene?125:72,67,190,255);using(var pen=new Pen(edge,1))e.Graphics.DrawRectangle(pen,0,0,Width-1,Height-1);};
       Resize+=delegate{ApplyRoundedRegion();};
       FormClosing+=delegate(object sender,FormClosingEventArgs e){if(e.CloseReason==CloseReason.UserClosing){e.Cancel=true;Collapse();}};
       Deactivate+=delegate{if(currentState=="Idle")MarkActive();};
@@ -93,7 +93,7 @@ namespace LuciferNative {
       wakeTimer.Interval=33;wakeTimer.Tick+=delegate{
         if(!wakeScene)return;
         wakeHero.Advance();
-        if((currentState=="Working"||currentState=="Understanding")&&(DateTime.UtcNow-wakeSceneAt).TotalMilliseconds>520)ShowTaskPanel();
+        // Keep the cinematic HUD visible for the entire voice turn. It collapses only after the runtime returns to idle.
       };wakeTimer.Start();
 
       RestorePosition();
@@ -104,8 +104,8 @@ namespace LuciferNative {
     protected override bool ShowWithoutActivation { get { return true; } }
 
     static void StyleButton(Button button,bool danger){
-      button.FlatStyle=FlatStyle.Flat;button.FlatAppearance.BorderSize=1;button.FlatAppearance.BorderColor=danger?Color.FromArgb(132,57,72):Color.FromArgb(124,53,82);
-      button.BackColor=danger?Color.FromArgb(58,31,38):Color.FromArgb(55,31,46);button.ForeColor=danger?Color.FromArgb(255,194,203):Color.FromArgb(255,213,231);
+      button.FlatStyle=FlatStyle.Flat;button.FlatAppearance.BorderSize=1;button.FlatAppearance.BorderColor=danger?Color.FromArgb(98,92,126,145):Color.FromArgb(118,52,166,214);
+      button.BackColor=danger?Color.FromArgb(26,37,48):Color.FromArgb(13,44,64);button.ForeColor=danger?Color.FromArgb(203,221,230):Color.FromArgb(211,242,255);
       button.Font=new Font("Segoe UI Semibold",9,FontStyle.Bold);button.Cursor=Cursors.Hand;
     }
 
@@ -126,14 +126,14 @@ namespace LuciferNative {
 
     void ShowTaskPanel(){
       if(!wakeScene)return;wakeScene=false;wakeHero.Visible=false;header.Visible=true;contentPanel.Visible=true;
-      Size=new Size(ExpandedWidth,ExpandedHeight);header.Dock=DockStyle.Top;header.Height=112;
-      avatar.Location=new Point(18,16);avatar.Size=new Size(72,72);title.Visible=true;stateLabel.Visible=true;detailLabel.Visible=true;collapseButton.Visible=true;
+      Size=new Size(ExpandedWidth,ExpandedHeight);header.Dock=DockStyle.Top;header.Height=88;
+      avatar.Location=new Point(14,10);avatar.Size=new Size(64,64);title.Visible=true;stateLabel.Visible=true;detailLabel.Visible=true;collapseButton.Visible=true;
       EnsureVisibleOnScreen();ApplyRoundedRegion();Invalidate();
     }
 
     public void ShowPassive(){
       MarkActive();
-      if(wakeScene)ShowTaskPanel();
+      if(wakeScene){EnsureVisibleOnScreen();if(!Visible)Show();return;}
       if(collapsed)Expand();
       EnsureVisibleOnScreen();
       if(!Visible)Show();
@@ -142,10 +142,11 @@ namespace LuciferNative {
 
     public void UpdateRuntime(string state,string detail,string transcript,string result,double level){
       currentState=String.IsNullOrWhiteSpace(state)?"Idle":state;
-      stateLabel.Text=currentState;detailLabel.Text=String.IsNullOrWhiteSpace(detail)?"Ready":detail;
+      stateLabel.Text=currentState=="Understanding"?"Thinking":currentState=="Working"?"Working":currentState=="Speaking"?"Speaking":currentState=="Listening"?"Listening":currentState=="Error"?"Attention":"Ready";
+      detailLabel.Text=currentState=="Listening"?"Listening for you":currentState=="Understanding"?"Understanding your request":currentState=="Working"?"Working on it":currentState=="Speaking"?"Responding":currentState=="Error"?"Check connection or microphone":"Say “Lucifer”";
       if(!String.IsNullOrWhiteSpace(transcript))transcriptLabel.Text=transcript;
       if(!String.IsNullOrWhiteSpace(result))resultLabel.Text=result;
-      else if(currentState=="Working"||currentState=="Understanding")resultLabel.Text=detailLabel.Text;
+      else if(currentState=="Working"||currentState=="Understanding")resultLabel.Text=currentState=="Understanding"?"Understanding…":"Working on it…";
       avatar.SetState(currentState);waveform.SetLevel(level,currentState);wakeHero.SetState(currentState,detail,level);
       if(currentState!="Idle")MarkActive();
     }
@@ -163,8 +164,8 @@ namespace LuciferNative {
 
     public void Expand(){
       if(!collapsed)return;wakeScene=false;wakeHero.Visible=false;header.Visible=true;collapsed=false;MarkActive();
-      Size=new Size(ExpandedWidth,ExpandedHeight);header.Dock=DockStyle.Top;header.Height=112;
-      avatar.Location=new Point(18,16);avatar.Size=new Size(72,72);
+      Size=new Size(ExpandedWidth,ExpandedHeight);header.Dock=DockStyle.Top;header.Height=88;
+      avatar.Location=new Point(14,10);avatar.Size=new Size(64,64);
       contentPanel.Visible=true;title.Visible=true;stateLabel.Visible=true;detailLabel.Visible=true;collapseButton.Visible=true;
       ApplyRoundedRegion();EnsureVisibleOnScreen();
     }
