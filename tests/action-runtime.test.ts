@@ -29,6 +29,17 @@ test('gateway retains NVIDIA/custom profile, credentials never enter metadata, a
  }finally{store.close();rmSync(dir,{recursive:true,force:true});}
 });
 
+test('ordinary conversation uses the fast path without sending the full tool catalog',async()=>{
+ const dir=mkdtempSync(path.resolve('.local/tests/fast-chat-')),a=await createApp(dir);let seenTools=-1,seenHistory=-1;
+ try{
+  a.assistant.provider={respond:async input=>{seenTools=input.tools.length;seenHistory=input.history.length;return {text:'Hello.',calls:[],raw:[]};}};
+  const task=await a.assistant.chat('hello lucifer');
+  while(a.tasks.controllers.has(task.id))await new Promise(r=>setTimeout(r,5));
+  const stored=a.store.get<any>('task',task.id);assert.equal(stored.state,'completed',stored.error);
+  assert.equal(seenTools,0);assert.ok(seenHistory>=1);
+ }finally{await a.app.close();rmSync(dir,{recursive:true,force:true});}
+});
+
 test('gateway tool parsing excludes private reasoning and rejects text-only models for action readiness',async()=>{
  const selected={provider:'freellmapi' as const,protocol:'chat_completions' as const,model:'free-fixture',baseUrl:'https://gateway.test/v1',apiKey:'fixture-secret',source:'runtime_vault' as const,freeRouteAllowed:true};
  const transport:typeof fetch=async(_url,init)=>{assert.equal((init?.headers as any).Authorization,'Bearer fixture-secret');return new Response(JSON.stringify({model:'actual-free-model',choices:[{message:{content:'',reasoning_content:'PRIVATE REASONING',tool_calls:[{id:'call-1',function:{name:'current_time',arguments:'{}'}}]}}]}));};
