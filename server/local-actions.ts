@@ -19,7 +19,7 @@ export function registerLocalActions(assistant:Assistant){
   }
   if(!ctx.nativeDeviceId)return;
   const appMatch=text.match(/^(?:lucifer[,.\s]*)?(?:open|launch)\s+(calculator|calc|camera|notepad|chrome|browser|edge|vscode|vs code|code)[.!?\s]*$/i);
-  if(appMatch){const raw=appMatch[1].toLowerCase();const app=raw==='calc'?'calculator':raw==='vs code'||raw==='code'?'vscode':raw;const result:any=await call('windows_open_app',{app});return {reply:'Windows accepted the '+app+' launch.'+(result?.processId?' Process '+result.processId+'.':'')};}
+  if(appMatch){const raw=appMatch[1].toLowerCase();const app=raw==='calc'?'calculator':raw==='vs code'||raw==='code'?'vscode':raw;const result:any=await call('windows_open_app',{app});return {reply:'Windows confirmed the '+app+' launch request.'+(result?.processId?' Process '+result.processId+'.':'')};}
   const fixedSite=text.match(/^(?:lucifer[,.\s]*)?open\s+(google|youtube|github)[.!?\s]*$/i);
   if(fixedSite){const urls:any={google:'https://www.google.com/',youtube:'https://www.youtube.com/',github:'https://github.com/'};await call('windows_open_website',{url:urls[fixedSite[1].toLowerCase()]});return {reply:'Opened '+fixedSite[1]+' in your browser.'};}
   const googleSearch=text.match(/^(?:lucifer[,.\s]*)?(?:search (?:in |on )?google for|google search)\s+(.{1,300})[.!?\s]*$/i);
