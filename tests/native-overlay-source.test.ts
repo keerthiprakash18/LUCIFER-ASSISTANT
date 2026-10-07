@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 
 test('native desktop panel is wired to the real wake and task pipeline',async()=>{
-  const [tray,overlay,build,worker,speech]=await Promise.all([
+  const [tray,overlay,build,worker,speech,nativeBuild,installer]=await Promise.all([
     readFile('companion/native/Tray.cs','utf8'),
     readFile('companion/native/Overlay.cs','utf8'),
     readFile('scripts/build-native-tray.ps1','utf8'),
     readFile('companion/background.ts','utf8'),
-    readFile('companion/native/speech_worker.py','utf8')
+    readFile('companion/native/speech_worker.py','utf8'),
+    readFile('scripts/native-build.ts','utf8'),
+    readFile('scripts/install-native.ps1','utf8')
   ]);
   assert.match(overlay,/sealed class AssistantOverlay/);
   assert.match(overlay,/ShowWithoutActivation/);
@@ -41,4 +43,7 @@ test('native desktop panel is wired to the real wake and task pipeline',async()=
   assert.doesNotMatch(overlay,/TotalMilliseconds>520\)ShowTaskPanel/,'working state must not auto-replace the cinematic wake HUD');
   assert.match(overlay,/if\(wakeScene\)\{EnsureVisibleOnScreen\(\);if\(!Visible\)Show\(\);return;\}/,'voice dispatch must preserve the cinematic wake HUD');
   assert.match(overlay,/Understanding your request|Working on it/,'raw backend task-state text must be replaced with user-facing status');
+  assert.match(nativeBuild,/exec setsid npm start/,'managed backend must exec the real server instead of tying it to a wrapper exit trap');
+  assert.doesNotMatch(nativeBuild,/trap 'kill -- -\"\$pid\"/,'backend lifecycle must not kill the server merely because a wrapper shell exits');
+  assert.match(installer,/Invoke-RestMethod -Uri 'http:\/\/127\.0\.0\.1:3001\/api\/health'/,'installer must wait for the production health endpoint before launching native runtime');
 });
