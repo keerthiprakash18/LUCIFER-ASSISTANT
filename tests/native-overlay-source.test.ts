@@ -36,4 +36,9 @@ test('native desktop panel is wired to the real wake and task pipeline',async()=
   assert.match(tray,/new Choices\(new string\[\]\{"Lucifer","Hey Lucifer","Lucyfer","Lusifer"\}\)/,'fast wake grammar must include common Lucifer pronunciations');
   assert.match(tray,/e\.Result\.Confidence<0\.38f/,'fast wake recognizer must keep an explicit confidence floor');
   assert.match(tray,/stream\.Push\(data\)/,'the same local microphone PCM must feed the fast wake recognizer');
+  assert.match(overlay,/const int ExpandedWidth=390/,'expanded voice card must stay compact');
+  assert.match(overlay,/const int ExpandedHeight=292/,'expanded voice card must not regress to the oversized debug panel');
+  assert.doesNotMatch(overlay,/TotalMilliseconds>520\)ShowTaskPanel/,'working state must not auto-replace the cinematic wake HUD');
+  assert.match(overlay,/if\(wakeScene\)\{EnsureVisibleOnScreen\(\);if\(!Visible\)Show\(\);return;\}/,'voice dispatch must preserve the cinematic wake HUD');
+  assert.match(overlay,/Understanding your request|Working on it/,'raw backend task-state text must be replaced with user-facing status');
 });
