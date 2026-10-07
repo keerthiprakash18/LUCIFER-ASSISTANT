@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,rmSync,writeFileSync,readFileSync} from 'node:fs';
 import path from 'node:path';
 import {z} from 'zod';
+import {deviceActionSchema} from '../shared/contracts.js';
 import {createApp} from '../server/app.js';
 import {setOwner} from '../server/auth.js';
 import {executeAction,type Policy} from '../companion/policy.js';
@@ -46,6 +47,38 @@ test('owner dashboard chat executes only an authorized online laptop; cancellati
  const response=await a.app.inject({method:'POST',url:'/api/chat',headers,payload:{text:'Open Notepad'}});assert.equal(response.statusCode,200);const task=response.json();const command=a.store.list<any>('command').find(command=>command.parentTaskId===task.id);assert.ok(command);assert.equal(command.ownerApproved,false);await a.app.inject({method:'POST',url:'/api/tasks/'+task.id+'/cancel',headers});while(a.tasks.controllers.has(task.id))await new Promise(r=>setTimeout(r,5));assert.equal(a.store.get<any>('command',command.id).status,'cancelled');assert.equal(a.store.get<any>('task',task.id).state,'cancelled');
  }finally{await a.app.close();rmSync(dir,{recursive:true,force:true});}
 });
+test('Jarvis-inspired fast voice commands stay local and use bounded Windows tools without model calls',async()=>{
+ const dir=mkdtempSync(path.resolve('.local/tests/jarvis-local-')),a=await createApp(dir);const deviceId='6f8d52d9-93c5-4d17-8d5b-4abfa8261fc2';let modelCalls=0;const calls:any[]=[];
+ try{
+  a.assistant.provider={respond:async()=>{modelCalls++;return {text:'MODEL SHOULD NOT RUN',calls:[],raw:[]};}};
+  const replace=(name:string,run:(input:any)=>Promise<any>)=>{const tool=a.assistant.tools.find(tool=>tool.name===name);assert.ok(tool,'missing '+name);tool!.run=async(input)=>run(input);};
+  replace('windows_open_app',async input=>{calls.push(['open_app',input]);return {processId:123,accepted:true};});
+  replace('windows_open_website',async input=>{calls.push(['open_website',input]);return {accepted:true};});
+  replace('windows_system_control',async input=>{calls.push(['system_control',input]);return {accepted:true,operation:input.operation};});
+  replace('windows_system_info',async input=>{calls.push(['system_info',input]);return {release:'11',logicalCores:16,memoryUsedPercent:42.5,memoryTotalBytes:16*1073741824,uptimeSeconds:7200};});
+  const run=async(text:string)=>{const task=await a.assistant.chat(text,[],deviceId,'en');while(a.tasks.controllers.has(task.id))await new Promise(r=>setTimeout(r,5));const stored=a.store.get<any>('task',task.id);assert.equal(stored.state,'completed',stored.error);return stored.result.reply;};
+  assert.match(await run('open calculator'),/calculator launch/i);
+  assert.match(await run('open camera'),/camera launch/i);
+  assert.match(await run('open github'),/Opened github/i);
+  assert.match(await run('google search NVIDIA Build models'),/Opened Google search/i);
+  assert.match(await run('volume up'),/Volume increased/i);
+  assert.match(await run('system info'),/16 logical CPU cores/i);
+  assert.match(await run('tell me a joke'),/(programmers|computer|data analyst)/i);
+  assert.equal(modelCalls,0);
+  assert.deepEqual(calls.map(entry=>entry[0]),['open_app','open_app','open_website','open_website','system_control','system_info']);
+ }finally{await a.app.close();rmSync(dir,{recursive:true,force:true});}
+});
+
+test('native policy exposes only bounded Jarvis-inspired system operations',async()=>{
+ const dir=mkdtempSync(path.resolve('.local/tests/jarvis-policy-'));
+ try{
+  const policy:Policy={server:'http://127.0.0.1:3001',name:'Fixture',apps:{},folders:{},commands:{},websites:[],actions:['system_info']};
+  const info:any=await executeAction(policy,{kind:'system_info'},new AbortController().signal,async()=>false);
+  assert.ok(info.logicalCores>=1);assert.ok(info.memoryTotalBytes>0);assert.equal(typeof info.hostname,'string');
+  assert.throws(()=>deviceActionSchema.parse({kind:'system_control',operation:'run_powershell'}));
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
 test('general CSV statistics distinguish missing data and nonnumeric columns without inventing measurements',()=>{const a=analyzeTable('item,quantity,price\napples,2,10\npears,3,\n');assert.equal(a.rows,2);const quantity=a.columns.find(column=>column.name==='quantity')!;assert.ok('sum' in quantity);assert.equal(quantity.sum,5);assert.equal(a.columns.find(column=>column.name==='price')?.missing,1);assert.equal(a.columns.find(column=>column.name==='item')?.numeric,false);assert.throws(()=>analyzeTable('a,b\n1,2,3'),/Invalid Record Length/);});
 test('general CSV PDF verifies actual saved bytes and supplied statistics after PDF glyph spacing',async()=>{
  const dir=mkdtempSync(path.resolve('.local/tests/csv-pdf-')),a=await createApp(dir);
