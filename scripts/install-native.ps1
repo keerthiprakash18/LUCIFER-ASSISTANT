@@ -8,6 +8,9 @@ function Send-Control($action){try{$pipe=New-Object IO.Pipes.NamedPipeClientStre
 if($DisableStartup -or $Uninstall){Remove-ItemProperty -Path $startup -Name 'LUCIFER Assistant' -ErrorAction SilentlyContinue;if($Uninstall){Send-Control 'exit'; & wsl.exe -d Ubuntu --cd ($root.Replace('C:\','/mnt/c/').Replace('\','/')) -- bash .local/native/stop-backend.sh};Write-Output 'Startup disabled. Owner data, pairing, encrypted credentials and downloaded models retained.';exit}
 New-Item -ItemType Directory -Force $directory,(Join-Path $directory 'audio'),(Join-Path $root '.local\notes')|Out-Null
 $apps=@{notepad=@{executable="$env:WINDIR\System32\notepad.exe";args=@()}}
+$calculator="$env:WINDIR\System32\calc.exe";$explorer="$env:WINDIR\explorer.exe"
+if(Test-Path $calculator){$apps.calculator=@{executable=$calculator;args=@()}}
+if(Test-Path $explorer){$apps.camera=@{executable=$explorer;args=@('microsoft.windows.camera:')}}
 $edge="${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe";$chrome="${env:ProgramFiles}\Google\Chrome\Application\chrome.exe";$code="$env:LOCALAPPDATA\Programs\Microsoft VS Code\Code.exe"
 if(Test-Path $edge){$apps.edge=@{executable=$edge;args=@()};$apps.browser=$apps.edge}
 if(Test-Path $chrome){$apps.chrome=@{executable=$chrome;args=@()};if(!$apps.browser){$apps.browser=$apps.chrome}}
@@ -20,6 +23,9 @@ if(!(Test-Path $policyPath)){
   $policy|ConvertTo-Json -Depth 10|Set-Content $policyPath -Encoding UTF8
 }
 $policy=Get-Content $policyPath -Raw|ConvertFrom-Json
+$policyChanged=$false
+foreach($alias in $apps.Keys){if(-not $policy.apps.PSObject.Properties[$alias]){$policy.apps|Add-Member -NotePropertyName $alias -NotePropertyValue ([pscustomobject]$apps[$alias]);$policyChanged=$true}}
+if($policyChanged){$policy|ConvertTo-Json -Depth 10|Set-Content $policyPath -Encoding UTF8}
 $capabilities=@{apps=@($policy.apps.PSObject.Properties.Name);folders=@($policy.folders.PSObject.Properties.Name);commands=@();actions=@($policy.actions)}
 @{windowsOwner=[Environment]::UserName;capabilities=$capabilities}|ConvertTo-Json -Depth 6|Set-Content (Join-Path $directory 'install-request.json') -Encoding UTF8
 $wslRoot=$root.Replace('C:\','/mnt/c/').Replace('\','/')
