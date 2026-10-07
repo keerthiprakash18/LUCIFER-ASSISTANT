@@ -86,6 +86,12 @@ An AI tool can read attached files, obtain the actual time, discover devices, cr
 
 The default for a new workspace is **NVIDIA Build / an owner-managed OpenAI-compatible Chat Completions endpoint**. The recommended NVIDIA model is `nvidia/nemotron-3.5-lightning-30b-a3b`. The setup form also supports the existing **OpenAI Responses** adapter and optional **local Ollama** through the official `ollama` client. The selected provider is stored as metadata; credentials remain server-side and encrypted. Fallback is explicit and bounded.
 
+### Jarvis-source compatibility layer
+
+The owner-supplied legacy Jarvis reference project was reviewed as behavior inspiration, not copied wholesale. LUCIFER now handles common Jarvis-style phrases through its deterministic local action layer before invoking a cloud model: calculator/camera launch, Google/YouTube/GitHub opening, Google search, volume up/down/mute, Windows system info, jokes, time and reminders. These actions still use the paired Windows companion and existing permission/policy boundaries.
+
+The imported reference used legacy OpenAI Completions, Google speech recognition, pyttsx3, shell commands, PyAutoGUI, hard-coded API placeholders and force-kill patterns. LUCIFER intentionally does not adopt those unsafe/obsolete execution patterns. Wake stays local, credentials stay in the encrypted/provider configuration path, arbitrary shell remains blocked, and potentially destructive actions keep explicit authorization boundaries.
+
 ### NVIDIA Smart Model Pool
 
 When NVIDIA Build is the selected Custom provider, **Sync NVIDIA model pool** reads the provider's `/models` catalog and stores every reported model ID locally. LUCIFER classifies the catalog into agent, reasoning, vision, translation, embedding and specialist groups. The catalog is not treated as one interchangeable chat list: general assistant execution only rotates among agent/reasoning candidates. A transient `429`, timeout or `5xx` cools the failing model and moves the same task to another healthy NVIDIA agent candidate, with a bounded maximum of four NVIDIA attempts before the separately configured Ollama fallback can be considered. Completed tool side effects keep their receipts and are not replayed during model failover.
